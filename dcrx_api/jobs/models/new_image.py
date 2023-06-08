@@ -31,7 +31,6 @@ class NewImage(BaseModel):
     name: StrictStr
     tag: StrictStr='latest'
     files: List[StrictStr]=[]
-    registry: Registry
     build_options: BuildOptions
     layers: conlist(Union[
         Add,

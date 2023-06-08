@@ -1,19 +1,17 @@
-import os
 import uuid
-import psutil
 from dcrx import Image
-from .job_queue import JobQueue
+from dcrx_api.env import Env
 from fastapi import APIRouter, HTTPException
 from typing import Dict
+from .job_queue import JobQueue
 from .models import (
     NewImage,
     JobMetadata,
     JobNotFoundException
 )
 
+job_context: Dict[str, Env] = {}
 queues: Dict[str, JobQueue] = {}
-pool_size = int(os.getenv("DCRX_API_WORKERS", psutil.cpu_count()))
-
 
 
 jobs_router = APIRouter()
@@ -26,8 +24,7 @@ async def start_job(new_image: NewImage) -> JobMetadata:
 
     dcrx_image = Image(
         new_image.name,
-        tag=new_image.tag,
-        registry=new_image.registry
+        tag=new_image.tag
     )
 
     for layer in new_image.layers:
@@ -35,7 +32,6 @@ async def start_job(new_image: NewImage) -> JobMetadata:
 
     return job_queue.submit(
         dcrx_image,
-        new_image.registry,
         build_options=new_image.build_options
     )
 

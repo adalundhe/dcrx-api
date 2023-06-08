@@ -1,8 +1,7 @@
 import asyncio
-import os
-import psutil
 import uuid
 from dcrx.image import Image
+from dcrx_api.env import Env
 from .models import BuildOptions
 from .models import Registry
 from typing import Optional, Dict, Union
@@ -16,11 +15,11 @@ from .models import (
 
 class JobQueue:
 
-    def __init__(self) -> None:
-        self.pool_size = int(os.getenv(
-            "DCRX_API_WORKERS",
-            psutil.cpu_count()
-        ))
+    def __init__(self, env: Env) -> None:
+        self.pool_size = env.DCRX_API_WORKERS
+        self.registry_uri = env.DOCKER_REGISTRY_URI
+        self.registry_username = env.DOCKER_REGISTRY_USERNAME
+        self.registry_password = env.DOCKER_REGISTRY_PASSWORD
 
         self._jobs: Dict[uuid.UUID, Job] = {}
         self._active: Dict[uuid.UUID, asyncio.Task] = {}
@@ -28,14 +27,19 @@ class JobQueue:
     def submit(
         self,
         image: Image, 
-        registry: Registry,
         build_options: Optional[BuildOptions]=None
     ) -> JobMetadata:
 
         job = Job(
             image,
-            registry,
-            build_options=build_options
+            Registry(
+                registry_uri=self.registry_uri,
+                registry_user=self.registry_username,
+                registry_password=self.registry_password
+                
+            ),
+            build_options=build_options,
+            pool_size=self.pool_size
         )
 
         self._jobs[job.job_id] = job

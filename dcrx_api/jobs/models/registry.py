@@ -7,3 +7,4 @@ from pydantic import (
 class Registry(BaseModel):
     registry_uri: StrictStr
     registry_user: StrictStr
+    registry_password: StrictStr

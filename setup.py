@@ -31,7 +31,7 @@ setup(
         'docker',
         'infra',
         'devops',
-        'fastapi'
+        'fastapi',
     ],
     classifiers=[
         "Programming Language :: Python :: 3.8",
@@ -41,11 +41,41 @@ setup(
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent"
     ],
+
+    entry_points = {
+        'console_scripts': [
+            'dcrx-api=dcrx_api.cli:run'
+        ],
+    },
     install_requires=[
         'dcrx',
         'fastapi[all]',
         'docker',
-        'psutil'
+        'psutil',
+        'python-jose[cryptography]',
+        'passlib[bcrypt]',
+        'python-dotenv',
+        'click'
     ],
+    extras_requires={
+        'all': [
+            'aiomysql',
+            'asyncpg',
+            'sqlalchemy',
+            'aiosqlite'
+        ],
+        'mysql': [
+            'aiomysql',
+            'sqlalchemy'
+        ],
+        'postgres': [
+            'asyncpg',
+            'sqlalchemy'
+        ],
+        'sqlite': [
+            'aiosqlite',
+            'sqlalchemy'
+        ]
+    },
     python_requires='>=3.10'
 )

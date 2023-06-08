@@ -25,26 +25,19 @@ class Job:
         self, 
         image: Image, 
         registry: Registry,
-        build_options: Optional[BuildOptions]=None
+        build_options: Optional[BuildOptions]=None,
+        pool_size: int=psutil.cpu_count()
     ) -> None:
         
         self.job_id = uuid.uuid4()
         self.job_name = image.full_name
-
-        pool_size = int(os.getenv(
-            "DCRX_API_WORKERS",
-            psutil.cpu_count()
-        ))
 
         self.image = image
         self.registry = registry
         self.build_options = build_options
 
         self.client = docker.DockerClient(
-            base_url=os.getenv(
-                "DOCKER_BASE_URL",
-                "unix:///var/run/docker.sock"
-            ),
+            base_url=registry.registry_password,
             max_pool_size=pool_size,
         )
 
@@ -57,16 +50,12 @@ class Job:
     async def run(self):
 
         try:
-            print('A')
             await self.login_to_registry()
-            print('B')
             await self.assemble_context()
-            print('C')
             await self.build_image()
             await self.push_image()
 
         except Exception as job_exception:
-            print(traceback.format_exc())
             self.error = job_exception
 
         await self.clear()
@@ -80,7 +69,7 @@ class Job:
             functools.partial(
                 self.client.api.login,
                 self.registry.registry_user,
-                password=os.getenv('DOCKER_REGISTRY_PASSWORD'),
+                password=self.registry.registry_password,
                 registry=self.registry.registry_uri,
                 reauth=True
             )
@@ -104,8 +93,6 @@ class Job:
 
         if self.build_options:
             build_options = self.build_options.dict()
-        
-        print(self.context)
 
         await self.loop.run_in_executor(
             self._executor,
