@@ -1,0 +1,4 @@
+dcrx
+fastapi[all]
+docker
+psutil
