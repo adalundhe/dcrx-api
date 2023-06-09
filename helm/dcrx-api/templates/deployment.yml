@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dcrx-api
+  labels:
+    app: dcrx-api
+spec:
+  replicas: {{ .Values.replicas }}
+  selector:
+    matchLabels:
+      app: dcrx-api
+  template:
+    metadata:
+      labels:
+        app: dcrx-api
+    spec:
+      containers:
+      - name: dcrx-api
+        image: "adalundhe/dcrx-api:{{ .Values.image.tag }}"
+        ports:
+        - containerPort: 2277
+        securityContext:
+          privileged: true
+        volumeMounts:
+          - name: dcrx-api-storage
+            mountPath: /var/lib/docker
+            subPath: docker
+    volumes:
+      - name: dcrx-api-storage
+        emptyDir: {}

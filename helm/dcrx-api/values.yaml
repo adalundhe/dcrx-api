@@ -1,0 +1,9 @@
+# Default values for dcrx-api.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+replicas: 3
+
+image:
+  # Overrides the image tag whose default is the chart appVersion.
+  tag: "latest"

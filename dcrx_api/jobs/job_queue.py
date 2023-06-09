@@ -5,7 +5,7 @@ from dcrx_api.env import Env
 from .models import BuildOptions
 from .models import Registry
 from typing import Optional, Dict, Union
-from .job import Job
+from .docker_job import DockerJob
 from .job_status import JobStatus
 from .models import (
     JobMetadata,
@@ -21,7 +21,7 @@ class JobQueue:
         self.registry_username = env.DOCKER_REGISTRY_USERNAME
         self.registry_password = env.DOCKER_REGISTRY_PASSWORD
 
-        self._jobs: Dict[uuid.UUID, Job] = {}
+        self._jobs: Dict[uuid.UUID, DockerJob] = {}
         self._active: Dict[uuid.UUID, asyncio.Task] = {}
 
     def submit(
@@ -30,7 +30,7 @@ class JobQueue:
         build_options: Optional[BuildOptions]=None
     ) -> JobMetadata:
 
-        job = Job(
+        job = DockerJob(
             image,
             Registry(
                 registry_uri=self.registry_uri,

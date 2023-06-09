@@ -10,6 +10,8 @@ DOCKER_REGISTRY=${DOCKER_REGISTRY_URI}
 
 PRE_START_PATH=${PRE_START_PATH:-/prestart.sh}
 
+dockerd &
+
 echo "Checking for script in $PRE_START_PATH"
 if [ -f $PRE_START_PATH ] ; then
     echo "Running script $PRE_START_PATH"

@@ -19,7 +19,7 @@ from typing import (
 from .job_status import JobStatus
 
 
-class Job:
+class DockerJob:
 
     def __init__(
         self, 

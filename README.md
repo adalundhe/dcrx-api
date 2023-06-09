@@ -135,7 +135,7 @@ Note that dcrx-api doesn't wait for the image to be built, instead returning a `
 To run the Docker image, we recommend first creating a `.env` file with the required environment variables noted above. Then run the image:
 
 ```bash
-docker run -p 2277:2277 --env-file .env -v /var/run/docker.sock:/var/run/docker.sock dcrx-api:latest
+docker run -p 2277:2277 --env-file .env --privileged dcrx-api:latest
 ```
 
 
