@@ -93,7 +93,7 @@ Next navigate to the `/jobs/images/create` tab. As before, we'll need to fill ou
       "tag": "3.11-slim",
     },
     {
-        "entrypoint": "stage",
+        "layer_type": "entrypoint",
         "command": [
             "echo",
             "Hello world!"
