@@ -44,11 +44,11 @@ DCRX_API_DATABASE_NAME=dcrx # Name of database to use for storing users. Default
 
 DCRX_API_DATABASE_URI=sqlite+aiosqlite:///dcrx # URL/URI of SQL database for storing users
 
-DOCKER_REGISTRY_URI='https://docker.io/v1/corpheus91/test-images' # Docker image registry to push images to.
+DOCKER_REGISTRY_URI=https://docker.io/v1/myrepo/test-images # Docker image registry to push images to.
 
-DOCKER_REGISTRY_USERNAME='corpheus91' # Username to authenticate Docker pushes to the provided registry.
+DOCKER_REGISTRY_USERNAME=test # Username to authenticate Docker pushes to the provided registry.
 
-DOCKER_REGISTRY_PASSWORD='Goldeneye006*' # Password to authenticate Docker pushes to the provided registry.
+DOCKER_REGISTRY_PASSWORD=test-repo-password # Password to authenticate Docker pushes to the provided registry.
 ```
 
 Prior to starting the server, we recommend seeding the database with an initial user. To do so, run the command:
@@ -123,6 +123,16 @@ hello_world.stage(
 Go ahead and submit the request via the `Execute` button. This will start a job to build the specified image and push it to the repository specified in dcrx-api's environmental variables.
 
 Note that dcrx-api doesn't wait for the image to be built, instead returning a `JobMetadata` response with a status code of `200`, including the `job_id`. Building images is time-intensive and could potentially bog down a server, so dcrx-api builds and pushes images in the background. We can use the `job_id` of a Job to make further `GET` requests to the `/jobs/images/{job_id}/get` endpoint to monitor and check how our job is progressing. If we need to cancel a job for any reason, we can simple make a `DELETE` request to `/jobs/images/{job_id}/cancel`.
+
+
+# Running the Docker Image
+
+To run the Docker image, we recommend first creating a `.env` file with the required environment variables noted above. Then run the image:
+
+```bash
+docker run -p 2277:2277 --env-file .env -v /var/run/docker.sock:/var/run/docker.sock dcrx-api:latest
+```
+
 
 # Notes and Gotchas
 
