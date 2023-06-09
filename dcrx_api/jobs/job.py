@@ -37,7 +37,6 @@ class Job:
         self.build_options = build_options
 
         self.client = docker.DockerClient(
-            base_url=registry.registry_password,
             max_pool_size=pool_size,
         )
 
@@ -64,6 +63,7 @@ class Job:
     async def login_to_registry(self):
 
         self.status = JobStatus.AUTHORIZING
+
         await self.loop.run_in_executor(
             self._executor,
             functools.partial(
@@ -97,7 +97,7 @@ class Job:
         await self.loop.run_in_executor(
             self._executor,
             functools.partial(
-                self.client.images.build,
+                self.client.api.build,
                 dockerfile=self.image.filename,
                 fileobj=self.context,
                 tag=self.image.full_name,
@@ -113,7 +113,7 @@ class Job:
         await self.loop.run_in_executor(
             self._executor,
             functools.partial(
-                self.client.images.push,
+                self.client.api.push,
                 self.image.name,
                 tag=self.image.tag
             )
