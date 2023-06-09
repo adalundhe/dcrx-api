@@ -22,16 +22,15 @@ from dcrx.layers import (
 )
 
 
-from typing import List, Union
+from typing import List, Union, Optional
 from .build_options import BuildOptions
-from .registry import Registry
 
 
 class NewImage(BaseModel):
     name: StrictStr
     tag: StrictStr='latest'
-    files: List[StrictStr]=[]
-    build_options: BuildOptions
+    files: Optional[List[StrictStr]]
+    build_options: Optional[BuildOptions]
     layers: conlist(Union[
         Add,
         Arg,

@@ -1,8 +1,8 @@
 import json
-from dcrx_api.auth.auth_context import active_auth_contexts
-from dcrx_api.users.service import users_context
+from dcrx_api.context.manager import context, ContextType
 from starlette.responses import Response
 from starlette.middleware.base import BaseHTTPMiddleware
+
 
 
 class AuthMidlleware(BaseHTTPMiddleware):
@@ -10,6 +10,10 @@ class AuthMidlleware(BaseHTTPMiddleware):
         super().__init__(app)
 
     async def dispatch(self, request, call_next):
+
+        auth_service_context = context.get(ContextType.AUTH_SERVICE)
+        users_service_context = context.get(ContextType.USERS_SERVICE)
+
         allowed_urls = [
             "/docs",
             "/favicon.ico",
@@ -24,11 +28,8 @@ class AuthMidlleware(BaseHTTPMiddleware):
 
         token = request.cookies.get('X-Auth-Token')
 
-        auth = active_auth_contexts.get('session')
-        connection = users_context.get('connection')
-
-        authorization = await auth.verify_token(
-            connection,
+        authorization = await auth_service_context.manager.verify_token(
+            users_service_context.connection,
             token
         )
 

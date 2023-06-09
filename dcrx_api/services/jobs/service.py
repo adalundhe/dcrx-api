@@ -1,17 +1,12 @@
 import uuid
 from dcrx import Image
-from dcrx_api.env import Env
+from dcrx_api.context.manager import context, ContextType
 from fastapi import APIRouter, HTTPException
-from typing import Dict
-from .job_queue import JobQueue
 from .models import (
     NewImage,
     JobMetadata,
     JobNotFoundException
 )
-
-job_context: Dict[str, Env] = {}
-queues: Dict[str, JobQueue] = {}
 
 
 jobs_router = APIRouter()
@@ -20,7 +15,7 @@ jobs_router = APIRouter()
 @jobs_router.post("/jobs/images/create")
 async def start_job(new_image: NewImage) -> JobMetadata:
 
-    job_queue = queues.get('images')
+    job_service_context = context.get(ContextType.JOB_SERVICE)
 
     dcrx_image = Image(
         new_image.name,
@@ -30,7 +25,8 @@ async def start_job(new_image: NewImage) -> JobMetadata:
     for layer in new_image.layers:
         dcrx_image.layers.append(layer)
 
-    return job_queue.submit(
+    return job_service_context.queue.submit(
+        job_service_context.connection,
         dcrx_image,
         build_options=new_image.build_options
     )
@@ -45,13 +41,25 @@ async def start_job(new_image: NewImage) -> JobMetadata:
     }
 )
 async def get_job(job_id: str) -> JobMetadata:
-    job_queue = queues.get('images')
-    retrieved_job = job_queue.get(
+
+    job_service_context = context.get(ContextType.JOB_SERVICE)
+
+    retrieved_job = job_service_context.queue.get(
         uuid.UUID(job_id)
     )
 
     if isinstance(retrieved_job, JobNotFoundException):
-        raise HTTPException(404, detail=retrieved_job.message)
+
+        retrieved_jobs = await job_service_context.connection.select(
+            filters={
+                'id': job_id
+            }
+        )
+
+        if len(retrieved_jobs) < 1:
+            raise HTTPException(404, detail=retrieved_job.message)
+        
+        retrieved_job = retrieved_jobs.pop()
     
     return retrieved_job
 
@@ -65,8 +73,10 @@ async def get_job(job_id: str) -> JobMetadata:
     }
 )
 async def cancel_job(job_id: str) -> JobMetadata:
-    job_queue = queues.get('images')
-    cancelled_job = job_queue.cancel(
+
+    job_service_context = context.get(ContextType.JOB_SERVICE)
+
+    cancelled_job = job_service_context.queue.cancel(
         uuid.UUID(job_id)
     )
 

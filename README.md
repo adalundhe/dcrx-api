@@ -95,7 +95,7 @@ Next navigate to the `/jobs/images/create` tab. As before, we'll need to fill ou
     {
       "layer_type": "stage",
       "base": "python",
-      "tag": "3.11-slim",
+      "tag": "3.11-slim"
     },
     {
         "layer_type": "entrypoint",
@@ -137,6 +137,23 @@ To run the Docker image, we recommend first creating a `.env` file with the requ
 ```bash
 docker run -p 2277:2277 --env-file .env --privileged dcrx-api:latest
 ```
+
+# Deploying via Helm
+
+DCRX-API has a minimal helm chart to help you scale up when ready. To begin, first create a Kuberenetes secret as below:
+
+```
+kubectl create secret generic dcrx-api-secrets --from-literal="DCRX_API_SECRET_KEY=$DCRX_API_SECRET_KEY" --from-literal="DOCKER_REGISTRY_USERNAME=$DOCKER_REGISTRY_USERNAME" --from-literal="DOCKER_REGISTRY_PASSWORD=$DOCKER_REGISTRY_PASSWORD"
+
+```
+
+Then install the provided helm chart:
+
+```
+helm install dcrx-api helm/dcrx-api/ --values helm/dcrx-api/values.yml
+```
+
+The chart creates three replica dcrx-api pods, a LoadBalancer service, and Nginx ingress to get you up and running in your Kubernetes cluster!
 
 
 # Notes and Gotchas

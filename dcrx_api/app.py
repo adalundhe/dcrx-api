@@ -1,6 +1,6 @@
 from fastapi import FastAPI
-from dcrx_api.jobs.service import jobs_router
-from dcrx_api.users.service import users_router
+from dcrx_api.services.jobs.service import jobs_router
+from dcrx_api.services.users.service import users_router
 from dcrx_api.lifespan import lifespan
 from dcrx_api.middleware.auth_middleware import AuthMidlleware
 

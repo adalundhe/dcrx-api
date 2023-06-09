@@ -13,8 +13,8 @@ from typing import (
     List,
     Union
 )
-from dcrx_api.users.users_connection import UsersConnection
-from dcrx_api.users.models import (
+from dcrx_api.services.users.connection import UsersConnection
+from dcrx_api.services.users.models import (
     DBUser,
     LoginUser
 )
@@ -25,7 +25,7 @@ from .models import (
 )
 
 
-class AuthContext:
+class AuthorizationSessionManager:
 
     def __init__(self, env: Env) -> None:
 
@@ -70,7 +70,7 @@ class AuthContext:
 
         if len(users) < 1:
             return AuthResponse(
-                error='User not found',
+                error='User authorization failed',
                 message='Authentication failed'
             )
         
@@ -86,7 +86,11 @@ class AuthContext:
         )
 
         if password_verified is False:
-            return None
+            return AuthResponse(
+                error='User authorization failed',
+                message='Authentication failed'
+            )
+        
         
         return user
     
@@ -126,11 +130,8 @@ class AuthContext:
             login_user.password
         )
 
-        if user is None:
-            return AuthResponse(
-                error='Login failed - invalid username or password',
-                message='Authorization failed'
-            )
+        if isinstance(user, AuthResponse):
+            return user
 
         access_token_expires = datetime.timedelta(
             minutes=self.token_expiration_minutes
@@ -206,6 +207,3 @@ class AuthContext:
     
     async def close(self):
         self._executor.shutdown(cancel_futures=True)
-
-
-active_auth_contexts: Dict[str, AuthContext] = {}

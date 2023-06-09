@@ -1,15 +1,9 @@
 import uuid
-import datetime
-from dcrx_api.env import Env
+from dcrx_api.services.auth.models import AuthenticationFailureException
+from dcrx_api.context.manager import context, ContextType
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import JSONResponse
-from dcrx_api.auth.auth_context import active_auth_contexts
-from dcrx_api.auth.models import AuthenticationFailureException
-from typing import (
-    Dict,
-    Literal, 
-    Union
-)
+from typing import Literal
 from .models import (
     AuthorizedUser,
     DBUser,
@@ -19,11 +13,6 @@ from .models import (
     UserNotFoundException,
     UserTransactionSuccessResponse,
 )
-from .users_connection import UsersConnection
-
-
-users_context: Dict[str,Union[Env, UsersConnection]] = {}
-
 
 users_router = APIRouter()
 
@@ -37,11 +26,12 @@ users_router = APIRouter()
     }
 )
 async def login_user(user: LoginUser) -> UserTransactionSuccessResponse:
-    users_connection = users_context.get('connection')
-    auth = active_auth_contexts.get('session')
 
-    authorization = await auth.generate_token(
-        users_connection,
+    users_service_context = context.get(ContextType.USERS_SERVICE)
+    auth_service_context = context.get(ContextType.AUTH_SERVICE)
+
+    authorization = await auth_service_context.manager.generate_token(
+        users_service_context.connection,
         user
     )
 
@@ -81,7 +71,8 @@ async def get_user(
     user_id_or_name: str, 
     match_by: Literal["id", "username"]="id"
 ) -> AuthorizedUser:
-    users_connection = users_context.get('connection')
+
+    users_service_context = context.get(ContextType.USERS_SERVICE)
 
     filters = {
         'id': user_id_or_name
@@ -92,7 +83,7 @@ async def get_user(
             'username': user_id_or_name
         }
 
-    users = await users_connection.select(
+    users = await users_service_context.connection.select(
         filters=filters
     )
 
@@ -117,12 +108,13 @@ async def get_user(
     }
 )
 async def create_user(user: NewUser) -> UserTransactionSuccessResponse:
-    users_connection = users_context.get('connection')
-    auth = active_auth_contexts.get('session')
 
-    hashed_password = await auth.encrypt(user.password)
+    users_service_context = context.get(ContextType.USERS_SERVICE)
+    auth_service_context = context.get(ContextType.AUTH_SERVICE)
 
-    await users_connection.create([
+    hashed_password = await auth_service_context.manager.encrypt(user.password)
+
+    await users_service_context.connection.create([
         DBUser(
             id=uuid.uuid4(),
             hashed_password=hashed_password,
@@ -145,9 +137,10 @@ async def create_user(user: NewUser) -> UserTransactionSuccessResponse:
     }
 )
 async def update_user(user: UpdatedUser) -> UserTransactionSuccessResponse:
-    users_connection = users_context.get('connection')
 
-    await users_connection.create([
+    users_service_context = context.get(ContextType.USERS_SERVICE)
+
+    await users_service_context.connection.update([
         user
     ])
 
@@ -166,9 +159,10 @@ async def update_user(user: UpdatedUser) -> UserTransactionSuccessResponse:
     }
 )
 async def delete_user(user_id: str) -> UserTransactionSuccessResponse:
-    users_connection = users_context.get('connection')
 
-    await users_connection.delete(
+    users_service_context = context.get(ContextType.USERS_SERVICE)
+
+    await users_service_context.connection.delete(
         filters={
             'id': user_id
         }

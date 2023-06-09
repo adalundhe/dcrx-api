@@ -2,9 +2,9 @@ import uuid
 import asyncio
 import click
 from dcrx_api.env import load_env, Env
-from dcrx_api.auth.auth_context import AuthContext
-from dcrx_api.users.users_connection import UsersConnection, ConnectionConfig
-from dcrx_api.users.models import DBUser, NewUser
+from dcrx_api.services.auth.manager import AuthorizationSessionManager
+from dcrx_api.services.users.connection import UsersConnection
+from dcrx_api.services.users.models import DBUser, NewUser
 from typing import Dict, Any
 
 
@@ -14,17 +14,9 @@ async def create_user(
     env: Env,
 ):
     
-    connection = UsersConnection(
-        ConnectionConfig(
-            database_username=env.DCRX_API_DATABASE_USER,
-            database_password=env.DCRX_API_DATABASE_PASSWORD,
-            database_type=env.DCRX_API_DATABASE_TYPE,
-            database_uri=env.DCRX_API_DATABASE_URI,
-            database_name=env.DCRX_API_DATABASE_NAME
-        )
-    )
+    connection = UsersConnection(env)
 
-    auth = AuthContext(env)
+    auth = AuthorizationSessionManager(env)
     await auth.connect()
 
     new_user = NewUser(
@@ -50,7 +42,7 @@ async def create_user(
     )
 
     await connection.connect()
-    await connection.create_table()
+    await connection.init()
 
     users = await connection.select()
 

@@ -1,9 +1,9 @@
 import sqlalchemy
 import uuid
-from .table_types import TableTypes
+from dcrx_api.database.table_types import TableTypes
 
 
-class UsersSQLLiteTable:
+class UsersMySQLTable:
 
     def __init__(
         self, 
@@ -14,7 +14,7 @@ class UsersSQLLiteTable:
             sqlalchemy.MetaData(),
             sqlalchemy.Column(
                 'id', 
-                sqlalchemy.BLOB,
+                sqlalchemy.String(36),
                 primary_key=True,
                 default=uuid.uuid4
             ),
@@ -55,7 +55,7 @@ class UsersSQLLiteTable:
         }
 
         self.types_map = {
-            'id': lambda value: str(value).encode(),
+            'id': lambda value: str(value),
             'username': lambda value: str(value),
             'first_name': lambda value: str(value),
             'last_name': lambda value: str(value),
@@ -64,4 +64,5 @@ class UsersSQLLiteTable:
             'hashed_password': lambda value: str(value)
         }
 
-        self.table_type = TableTypes.SQLITE
+        self.table_type = TableTypes.MYSQL
+

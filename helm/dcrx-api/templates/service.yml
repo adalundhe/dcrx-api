@@ -5,8 +5,11 @@ metadata:
   labels:
     run: dcrx-api
 spec:
+  type: LoadBalancer
   ports:
-  - port: 2277
-    protocol: TCP
+    - name: http
+      protocol: TCP
+      port: 2277
+      targetPort: 2277
   selector:
-    run: dcrx-api
+    app: dcrx-api

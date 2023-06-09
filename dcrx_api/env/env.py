@@ -25,6 +25,7 @@ class Env(BaseModel):
     DCRX_API_DATABASE_URI: StrictStr
     DCRX_API_DATABASE_PASSWORD: Optional[StrictStr]
     DCRX_API_DATABASE_NAME: StrictStr='dcrx'
+    DCRX_API_PUSH_TIMEOUT_MINUTES: StrictInt=10
     DOCKER_REGISTRY_URI: StrictStr
     DOCKER_REGISTRY_USERNAME: StrictStr
     DOCKER_REGISTRY_PASSWORD: StrictStr
@@ -41,6 +42,7 @@ class Env(BaseModel):
             'DCRX_API_DATABASE_PASSWORD': str,
             'DCRX_API_DATABASE_NAME': str,
             'DCRX_API_DATABASE_URI': str,
+            'DCRX_API_PUSH_TIMEOUT_MINUTES': int,
             'DOCKER_REGISTRY_URI': str,
             'DOCKER_REGISTRY_USERNAME': str,
             'DOCKER_REGISTRY_PASSWORD': str

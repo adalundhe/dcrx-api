@@ -1,17 +1,17 @@
 import sqlalchemy
 import uuid
 from sqlalchemy.dialects.postgresql import UUID
-from .table_types import TableTypes
+from dcrx_api.database.table_types import TableTypes
 
 
-class UsersPostgresTable:
+class JobsPostgresTable:
 
     def __init__(
         self, 
-        users_table_name: str
+        jobs_table_name: str
     ) -> None:
         self.table = sqlalchemy.Table(
-            users_table_name,
+            jobs_table_name,
             sqlalchemy.MetaData(),
             sqlalchemy.Column(
                 'id', 
@@ -20,49 +20,43 @@ class UsersPostgresTable:
                 default=uuid.uuid4
             ),
             sqlalchemy.Column(
-                'username',
+                'name',
                 sqlalchemy.TEXT
             ),
             sqlalchemy.Column(
-                'first_name',
+                'image',
                 sqlalchemy.TEXT
             ),
             sqlalchemy.Column(
-                'last_name',
+                'tag',
                 sqlalchemy.TEXT
             ),
             sqlalchemy.Column(
-                'email',
+                'status',
                 sqlalchemy.TEXT
             ),
             sqlalchemy.Column(
-                'disabled',
-                sqlalchemy.BOOLEAN
-            ),
-            sqlalchemy.Column(
-                'hashed_password',
+                'context',
                 sqlalchemy.TEXT
             )
         )
 
         self.columns = {
             'id': self.table.c.id,
-            'username': self.table.c.username,
-            'first_name': self.table.c.first_name,
-            'last_name': self.table.c.last_name,
-            'email': self.table.c.email,
-            'disable': self.table.c.disabled,
-            'hashed_password': self.table.c.hashed_password
+            'name': self.table.c.name,
+            'image': self.table.c.image,
+            'tag': self.table.c.tag,
+            'status': self.table.c.status,
+            'context': self.table.c.context,
         }
 
         self.types_map = {
             'id': lambda value: uuid.UUID(value),
-            'username': lambda value: str(value),
-            'first_name': lambda value: str(value),
-            'last_name': lambda value: str(value),
-            'email': lambda value: str(value),
-            'disabled': lambda value: bool(value),
-            'hashed_password': lambda value: str(value)
+            'name': lambda value: str(value),
+            'image': lambda value: str(value),
+            'tag': lambda value: str(value),
+            'status': lambda value: str(value),
+            'context': lambda value: str(value)
         }
 
         self.table_type = TableTypes.POSTGRES

@@ -18,7 +18,7 @@ from typing import (
 )
 from .users_mysql_table import UsersMySQLTable
 from .users_postgres_table import UsersPostgresTable
-from .users_sqllite_table import UsersSQLLiteTable
+from .users_sqllite_table import UsersSQLiteTable
 
 M = TypeVar('M', bound=BaseModel)
 
@@ -30,25 +30,25 @@ class UsersTable(Generic[M]):
         database_type: Literal["mysql", "postgres", "sqlite"]="sqlite"
     ) -> None:
         self._table_types: Dict[
-            Literal["mysql", "postgres", "Sqlite"],
+            Literal["mysql", "postgres", "sqlite"],
             Callable[
                 [str],
                 Union[
                     UsersMySQLTable,
                     UsersPostgresTable,
-                    UsersSQLLiteTable
+                    UsersSQLiteTable
                 ]
             ]
         ] = {
             'mysql': lambda table_name: UsersMySQLTable(table_name),
             'postgres': lambda table_name: UsersPostgresTable(table_name),
-            'sqlite': lambda table_name: UsersSQLLiteTable(table_name)
+            'sqlite': lambda table_name: UsersSQLiteTable(table_name)
         }
 
         self.selected: Union[
             UsersMySQLTable,
             UsersPostgresTable,
-            UsersSQLLiteTable
+            UsersSQLiteTable
         ] = self._table_types.get(
             database_type,
             UsersMySQLTable
@@ -64,7 +64,9 @@ class UsersTable(Generic[M]):
         if filters:
             for field_name, value in filters.items():
                 select_clause = select_clause.where(
-                    self.selected.columns.get(field_name) == value
+                    self.selected.columns.get(field_name) == self.selected.types_map.get(
+                        field_name
+                    )(value)
                 )
 
         return select_clause
@@ -91,21 +93,24 @@ class UsersTable(Generic[M]):
 
         for user in users:
 
-            update_columns = user.dict(
-                exclude_none=True,
-                exclude_unset=True
-            )
-
-
             update_clause: Update = self.selected.table.update()
 
 
             for field_name, value in filters.items():
                 update_clause = update_clause.where(
-                    self.selected.columns.get(field_name) == value
+                    self.selected.columns.get(field_name) == self.selected.types_map.get(
+                        field_name
+                    )(value)
                 )
 
-            update_clause = update_clause.values(**update_columns)
+            update_clause = update_clause.values({
+                name: self.selected.types_map.get(
+                    name
+                )(value) for name, value in user.dict(  
+                    exclude_none=True,
+                    exclude_unset=True
+                ).items()
+            })
             updates.append(update_clause)
 
         return updates
@@ -120,7 +125,9 @@ class UsersTable(Generic[M]):
         if filters:
             for field_name, value in filters.items():
                 delete_clause = delete_clause.where(
-                    self.selected.columns.get(field_name) == value
+                    self.selected.columns.get(field_name) == self.selected.types_map.get(
+                        field_name
+                    )(value)
                 )
 
         return delete_clause

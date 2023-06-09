@@ -20,7 +20,6 @@ from sqlalchemy.ext.asyncio import (
 )
 from typing import (
     Union, 
-    Any, 
     Generic,
     TypeVar,
     List
@@ -103,7 +102,7 @@ class DatabaseConnection(Generic[T]):
             Union[Insert, Update]
         ]
     ):
-
+        
         for statement in statements:
             await self.connection.execute(statement)
         

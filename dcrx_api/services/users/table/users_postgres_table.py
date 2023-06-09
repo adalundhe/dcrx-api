@@ -1,9 +1,10 @@
 import sqlalchemy
 import uuid
-from .table_types import TableTypes
+from sqlalchemy.dialects.postgresql import UUID
+from dcrx_api.database.table_types import TableTypes
 
 
-class UsersMySQLTable:
+class UsersPostgresTable:
 
     def __init__(
         self, 
@@ -14,7 +15,7 @@ class UsersMySQLTable:
             sqlalchemy.MetaData(),
             sqlalchemy.Column(
                 'id', 
-                sqlalchemy.String(36),
+                UUID(as_uuid=True),
                 primary_key=True,
                 default=uuid.uuid4
             ),
@@ -55,7 +56,7 @@ class UsersMySQLTable:
         }
 
         self.types_map = {
-            'id': lambda value: str(value),
+            'id': lambda value: uuid.UUID(value),
             'username': lambda value: str(value),
             'first_name': lambda value: str(value),
             'last_name': lambda value: str(value),
@@ -64,5 +65,5 @@ class UsersMySQLTable:
             'hashed_password': lambda value: str(value)
         }
 
-        self.table_type = TableTypes.MYSQL
+        self.table_type = TableTypes.POSTGRES
 

@@ -25,6 +25,47 @@ spec:
           - name: dcrx-api-storage
             mountPath: /var/lib/docker
             subPath: docker
-    volumes:
-      - name: dcrx-api-storage
-        emptyDir: {}
+        env:
+        - name: DCRX_API_WORKERS
+          valueFrom:
+            configMapKeyRef:
+              name: dcrx-api-env
+              key: DCRX_API_WORKERS
+        - name: DCRX_API_TOKEN_EXPIRATION_MINUTES
+          valueFrom:
+            configMapKeyRef:
+              name: dcrx-api-env
+              key: DCRX_API_TOKEN_EXPIRATION_MINUTES
+        - name: DCRX_API_DATABASE_TYPE
+          valueFrom:
+            configMapKeyRef:
+              name: dcrx-api-env
+              key: DCRX_API_DATABASE_TYPE
+        - name: DCRX_API_DATABASE_URI
+          valueFrom:
+            configMapKeyRef:
+              name: dcrx-api-env
+              key: DCRX_API_DATABASE_URI
+        - name: DOCKER_REGISTRY_URI
+          valueFrom:
+            configMapKeyRef:
+              name: dcrx-api-env
+              key: DOCKER_REGISTRY_URI
+        - name: DCRX_API_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: dcrx-api-secrets
+              key: DCRX_API_SECRET_KEY
+        - name: DOCKER_REGISTRY_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: dcrx-api-secrets
+              key: DOCKER_REGISTRY_USERNAME
+        - name: DOCKER_REGISTRY_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: dcrx-api-secrets
+              key: DOCKER_REGISTRY_PASSWORD
+      volumes:
+        - name: dcrx-api-storage
+          emptyDir: {}

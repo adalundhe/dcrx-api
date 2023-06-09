@@ -1,5 +1,6 @@
 import click
-import psutil
+import dcrx_api
+import pathlib
 import uvicorn
 from dcrx_api.app import app
 
@@ -17,12 +18,11 @@ def server():
 )
 @click.option(
     '--port',
-    default=8000,
+    default=2277,
     help='Port to run the DCRX server on.'
 )
 @click.option(
     '--reload',
-    default=False,
     is_flag=True,
     help='Enable hot reload.'
 )
@@ -49,6 +49,9 @@ def run(
             host=host,
             port=port,
             reload=True,
+            reload_dirs=[
+                str(pathlib.Path(dcrx_api.__file__).parent)
+            ],
             log_level=log_level
         )
 
