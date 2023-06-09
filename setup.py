@@ -55,7 +55,8 @@ setup(
         'python-jose[cryptography]',
         'passlib[bcrypt]',
         'python-dotenv',
-        'click'
+        'click',
+        'uvicorn[standard]'
     ],
     extras_requires={
         'all': [

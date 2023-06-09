@@ -58,9 +58,6 @@ async def create_user(
         await connection.create([
             user
         ])
-
-    else:
-        raise Exception('Err. - Database can only be initialized once.')
     
     await auth.close()
     await connection.close()

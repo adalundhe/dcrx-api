@@ -1,4 +1,5 @@
 import click
+import psutil
 import uvicorn
 from dcrx_api.app import app
 
@@ -25,22 +26,46 @@ def server():
     is_flag=True,
     help='Enable hot reload.'
 )
+@click.option(
+    '--workers',
+    default=1,
+    help='Number of Uvicorn workers to use'
+)
+@click.option(
+    '--log-level',
+    default='info',
+    help='Log level to use for Uvicorn'
+)
 def run(
     host: str,
     port: int,
-    reload: bool
+    reload: bool,
+    workers: int,
+    log_level: str
 ):
     if reload:
         uvicorn.run(
             "dcrx_api.app:app",
             host=host,
             port=port,
-            reload=True
+            reload=True,
+            log_level=log_level
         )
+
+    elif workers > 1:
+        uvicorn.run(
+            "dcrx_api.app:app",
+            host=host,
+            port=port,
+            workers=workers,
+            log_level=log_level
+        )
+
 
     else:
         uvicorn.run(
             app, 
             host=host,
-            port=port
+            port=port,
+            log_level=log_level
         )

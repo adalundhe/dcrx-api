@@ -74,13 +74,11 @@ class UsersTable(Generic[M]):
         users: List[M]
     ) -> List[Insert]:
         return [
-            self.selected.table.insert(
-                values={
-                    name: self.selected.types_map.get(
-                        name
-                    )(value) for name, value in user.dict().items()
-                }
-            ) for user in users
+            self.selected.table.insert().values({
+                name: self.selected.types_map.get(
+                    name
+                )(value) for name, value in user.dict().items()
+            }) for user in users
         ]
     
     def update(

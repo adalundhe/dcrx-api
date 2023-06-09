@@ -10,3 +10,4 @@ aiosqlite
 sqlalchemy
 python-dotenv
 click
+uvicorn[standard]
