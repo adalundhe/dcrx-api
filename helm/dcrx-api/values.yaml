@@ -14,7 +14,7 @@ env:
   DCRX_API_DATABASE_TYPE: asyncpg
   DCRX_API_DATABASE_PORT: 5432
   DCRX_API_DATABASE_USER: postgres
-  DOCKER_REGISTRY_URI: "https://docker.io/v1/adalundhe/hello-world"
+  DOCKER_REGISTRY_URI: "https://docker.io/v1/<YOUR_REGSITRY_HERE>"
 
 
   
