@@ -31,11 +31,13 @@ docker pull adalundhe/dcrx-api:latest
 Dcrx-api requires a slew of environmental variables in order to run correctly. These include:
 
 ```
+DCRX_API_JOB_MAX_AGE='1m'
+
 DCRX_API_JOB_POOL_SIZE=10 # Maximum number of concurrent builds. Default is 10.
 
 DCRX_API_JOB_WORKERS=4 # Number of workers to use per-job. Default is the number os OS threads.
 
-DCRX_API_TOKEN_EXPIRATION_MINUTES=10 # Time in minutes for JWT authorization token to expire. Default is 30.
+=15m # Time in minutes for JWT authorization token to expire. Default is 15 minutes.
 
 DCRX_API_SECRET_KEY=testingthis # Initial secret used to hash user passwords.
 

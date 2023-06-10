@@ -172,8 +172,8 @@ async def cancel_job(job_id: str) -> JobMetadata:
 
     if isinstance(cancelled_job, JobNotFoundException):
         raise HTTPException(404, detail=cancelled_job.message)
-
-    return cancelled_job
+    
+    return cancelled_job.metadata
     
 
 

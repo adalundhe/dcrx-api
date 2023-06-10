@@ -165,7 +165,7 @@ async def delete_user(user_id: str) -> UserTransactionSuccessResponse:
 
     users_service_context = context.get(ContextType.USERS_SERVICE)
 
-    await users_service_context.connection.delete(
+    await users_service_context.connection.remove(
         filters={
             'id': user_id
         }

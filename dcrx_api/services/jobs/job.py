@@ -71,6 +71,7 @@ class Job:
         self.job_image_label = f'{dcrx_api_label.name}={dcrx_api_label.value}'
         self.job_start_time = time.monotonic()
         self.image_stats = ImageStats()
+        self.client_closed = False
 
     async def list(self) -> List[DockerImage]:
         return await self.loop.run_in_executor(
@@ -221,21 +222,30 @@ class Job:
 
         for layer in self.image.layers:
             if layer.layer_type == 'stage':
-                await self.loop.run_in_executor(
-                    self._executor,
-                    functools.partial(
-                        self.client.images.remove,
-                        f'{layer.base}:{layer.tag}'
-                    )
-                )
 
-        await self.loop.run_in_executor(
-            self._executor,
-            functools.partial(
-                self.client.images.remove,
-                self.image.full_name
+                try:
+                    await self.loop.run_in_executor(
+                        self._executor,
+                        functools.partial(
+                            self.client.images.remove,
+                            f'{layer.base}:{layer.tag}'
+                        )
+                    )
+                
+                except Exception:
+                    pass
+
+        try:
+            await self.loop.run_in_executor(
+                self._executor,
+                functools.partial(
+                    self.client.images.remove,
+                    self.image.full_name
+                )
             )
-        )
+
+        except Exception:
+            pass
 
         await self.loop.run_in_executor(
             self._executor,
@@ -278,7 +288,10 @@ class Job:
         })
 
         self._executor.shutdown(cancel_futures=True)
-        self.client.close()
+
+        if self.client_closed is False:
+            self.client.close()
+            self.client_closed = True
 
         if self.context:
             self.context.close()

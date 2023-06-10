@@ -1,8 +1,9 @@
 import asyncio
 import uuid
 import time
-from dcrx.image import Image
 from dcrx_api.env import Env
+from dcrx_api.env.time_parser import TimeParser
+from dcrx.image import Image
 from docker.models.images import Image as DockerImage
 from .models import BuildOptions
 from .models import Registry
@@ -18,7 +19,7 @@ from .models import (
     JobMetadata,
     JobNotFoundException
 )
-from .time_parser import TimeParser
+from .status import JobStatus
 
 
 class JobQueue:
@@ -42,6 +43,7 @@ class JobQueue:
         self._job_prune_interval = TimeParser(env.DCRX_API_JOB_PRUNE_INTERVAL).time
         self._run_cleanup = True
         self.active_images: List[DockerImage] = []
+        self.cancelling: List[asyncio.Task] = []
 
     async def get_active_images(self) -> List[DockerImage]:
 
@@ -88,10 +90,31 @@ class JobQueue:
                 job_elapsed = time.monotonic() - job.job_start_time
                 job_is_pruneable = job.metadata.status in ['DONE', 'CANCELLED', 'FAILED']
 
+                if job.metadata.status == 'CANCELLED':
+                    self.cancelling.append(
+                        asyncio.create_task(
+                            self._cancel_task(job)
+                        )
+                    )
+
                 if job_is_pruneable and job_elapsed > self._job_max_age:
                     del self._jobs[job_id]
+
+            
+            cancelling_tasks = list(self.cancelling)
+            for cancel_task in cancelling_tasks:
+                if cancel_task.done():
+                    self.cancelling.remove(cancel_task)
             
             await asyncio.sleep(self._job_prune_interval)
+
+    async def _cancel_task(self, job: Job):
+        
+        job.client.close()
+        job.client_closed = True
+
+        await job.clear()
+        await job.close(cancelled=True)
 
     def submit(
         self,
@@ -131,23 +154,50 @@ class JobQueue:
 
         return job.metadata
     
-    def cancel(self, job_id: uuid.UUID) -> Union[JobMetadata, JobNotFoundException]:
-        job = self._active.get(job_id)
-        if job is None or job.done():
+    def cancel(self, job_id: uuid.UUID) -> Union[Job, JobNotFoundException]:
+
+        active_task = self._active.get(job_id)
+        if active_task and active_task.done() is False:
+            active_task.cancel()
+
+        cancellable_states = [
+            'CREATED',
+            'AUTHORIZING', 
+            'BUILDING',
+            'GENERATING',
+            'PUSHING'
+        ]
+
+
+        cancelled_job = self._jobs.get(job_id)
+
+        if cancelled_job is None:
+            return JobNotFoundException(
+                job_id=job_id,
+                message=f'Job - {job_id} - not found or is not active.'
+            )
+
+        job_is_cancellable = cancelled_job.metadata.status in cancellable_states
+
+        if job_is_cancellable is False:
             return JobNotFoundException(
                 job_id=job_id,
                 message=f'Job - {job_id} - not found or is not active.'
             )
         
-        job.cancel()
-
-        cancelled_job = self._jobs.get(job_id)
-
-        self._jobs[job_id].close(
-            cancelled=True
+        cancelled_job.metadata = JobMetadata(
+            id=cancelled_job.job_id,
+            name=cancelled_job.job_name,
+            image=cancelled_job.image.name,
+            tag=cancelled_job.image.tag,
+            status=JobStatus.CANCELLED.value,
+            context=f'Job {cancelled_job.job_id} cancelled.',
+            size=cancelled_job.metadata.size
         )
+        
+        self._jobs[job_id] = cancelled_job
 
-        return cancelled_job.metadata
+        return cancelled_job
     
     async def close(self):
 

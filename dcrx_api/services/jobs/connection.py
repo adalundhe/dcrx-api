@@ -72,17 +72,17 @@ class JobsConnection(DatabaseConnection[JobMetadata]):
             )
         )
     
-    async def delete(
+    async def remove(
         self,
         filters: Dict[str, Any]
     ):
-        return await self.delete(
+        return await self.delete([
             self.table.delete({
                 name: self.table.selected.types_map.get(
                     name
                 )(value) for name, value in filters.items()
             })
-        )
+        ])
     
     async def drop(self):
         return await self.drop_table(self.table)

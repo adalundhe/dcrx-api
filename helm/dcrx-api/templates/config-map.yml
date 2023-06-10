@@ -5,7 +5,7 @@ metadata:
 data:
   # property-like keys; each key maps to a simple value
   DCRX_API_JOB_WORKERS: "{{ .Values.env.DCRX_API_JOB_WORKERS }}"
-  DCRX_API_TOKEN_EXPIRATION_MINUTES: "{{ .Values.env.DCRX_API_TOKEN_EXPIRATION_MINUTES }}"
+  DCRX_API_TOKEN_EXPIRATION: "{{ .Values.env.DCRX_API_TOKEN_EXPIRATION }}"
   DCRX_API_DATABASE_TYPE: "{{ .Values.env.DCRX_API_DATABASE_TYPE }}"
   DCRX_API_DATABASE_PORT: "{{ .Values.env.DCRX_API_DATABASE_PORT }}"
   DCRX_API_DATABASE_USER: "{{ .Values.env.DCRX_API_DATABASE_USER }}"

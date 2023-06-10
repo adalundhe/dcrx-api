@@ -24,7 +24,7 @@ class Env(BaseModel):
     DCRX_API_JOB_POOL_SIZE: StrictInt=10
     DCRX_API_SECRET_KEY: StrictStr
     DCRX_API_AUTH_ALGORITHM: StrictStr='HS256'
-    DCRX_API_TOKEN_EXPIRATION_MINUTES: StrictInt=30
+    DCRX_API_TOKEN_EXPIRATION: StrictStr='15m'
     DCRX_API_DATABASE_TYPE: Optional[StrictStr]='sqlite'
     DCRX_API_DATABASE_USER: Optional[StrictStr]
     DCRX_API_DATABASE_URI: Optional[StrictStr]
@@ -45,7 +45,7 @@ class Env(BaseModel):
             'DCRX_API_JOB_POOL_SIZE': int,
             'DCRX_API_SECRET_KEY': str,
             'DCRX_API_AUTH_ALGORITHM': str,
-            'DCRX_API_TOKEN_EXPIRATION_MINUTES': int,
+            'DCRX_API_TOKEN_EXPIRATION': str,
             'DCRX_API_DATABASE_TYPE': str,
             'DCRX_API_DATABASE_USER': str,
             'DCRX_API_DATABASE_PASSWORD': str,

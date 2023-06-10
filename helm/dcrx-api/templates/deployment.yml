@@ -31,11 +31,11 @@ spec:
             configMapKeyRef:
               name: "{{ .Release.Name }}-env"
               key: DCRX_API_JOB_WORKERS
-        - name: DCRX_API_TOKEN_EXPIRATION_MINUTES
+        - name: DCRX_API_TOKEN_EXPIRATION
           valueFrom:
             configMapKeyRef:
               name: "{{ .Release.Name }}-env"
-              key: DCRX_API_TOKEN_EXPIRATION_MINUTES
+              key: DCRX_API_TOKEN_EXPIRATION
         - name: DCRX_API_DATABASE_TYPE
           valueFrom:
             configMapKeyRef:

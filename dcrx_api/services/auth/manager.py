@@ -14,6 +14,7 @@ from typing import (
     List,
     Union
 )
+from dcrx_api.env.time_parser import TimeParser
 from dcrx_api.services.users.connection import UsersConnection
 from dcrx_api.services.users.models import (
     DBUser,
@@ -39,7 +40,7 @@ class AuthorizationSessionManager:
         self.scheme = OAuth2PasswordBearer(tokenUrl="token")
         self.secret_key = env.DCRX_API_SECRET_KEY
         self.auth_algorithm = env.DCRX_API_AUTH_ALGORITHM
-        self.token_expiration_minutes = env.DCRX_API_TOKEN_EXPIRATION_MINUTES
+        self.token_expiration_time = TimeParser(env.DCRX_API_TOKEN_EXPIRATION).time
 
         self._executor: Union[ThreadPoolExecutor, None] = None
         self._loop: Union[asyncio.AbstractEventLoop, None] = None
@@ -135,7 +136,7 @@ class AuthorizationSessionManager:
             return user
 
         access_token_expires = datetime.timedelta(
-            minutes=self.token_expiration_minutes
+            seconds=self.token_expiration_time
         )
         
         auth_token = self.create_access_token(
