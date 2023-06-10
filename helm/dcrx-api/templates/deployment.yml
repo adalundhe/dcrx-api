@@ -1,18 +1,18 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: dcrx-api
+  name: "{{ .Release.Name }}-dcrx-api"
   labels:
-    app: dcrx-api
+    app: "{{ .Release.Name }}-dcrx-api"
 spec:
   replicas: {{ .Values.replicas }}
   selector:
     matchLabels:
-      app: dcrx-api
+      app: "{{ .Release.Name }}-dcrx-api"
   template:
     metadata:
       labels:
-        app: dcrx-api
+        app: "{{ .Release.Name }}-dcrx-api"
     spec:
       containers:
       - name: dcrx-api
@@ -22,34 +22,44 @@ spec:
         securityContext:
           privileged: true
         volumeMounts:
-          - name: dcrx-api-storage
+          - name: "{{ .Release.Name }}-storage"
             mountPath: /var/lib/docker
             subPath: docker
         env:
         - name: DCRX_API_WORKERS
           valueFrom:
             configMapKeyRef:
-              name: dcrx-api-env
+              name: "{{ .Release.Name }}-env"
               key: DCRX_API_WORKERS
         - name: DCRX_API_TOKEN_EXPIRATION_MINUTES
           valueFrom:
             configMapKeyRef:
-              name: dcrx-api-env
+              name: "{{ .Release.Name }}-env"
               key: DCRX_API_TOKEN_EXPIRATION_MINUTES
         - name: DCRX_API_DATABASE_TYPE
           valueFrom:
             configMapKeyRef:
-              name: dcrx-api-env
+              name: "{{ .Release.Name }}-env"
               key: DCRX_API_DATABASE_TYPE
         - name: DCRX_API_DATABASE_URI
           valueFrom:
             configMapKeyRef:
-              name: dcrx-api-env
+              name: "{{ .Release.Name }}-env"
               key: DCRX_API_DATABASE_URI
+        - name: DCRX_API_DATABASE_USER
+          valueFrom:
+            configMapKeyRef:
+              name: "{{ .Release.Name }}-env"
+              key: DCRX_API_DATABASE_USER
+        - name: DCRX_API_DATABASE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: "{{ .Release.Name }}-postgresql"
+              key: postgres-password
         - name: DOCKER_REGISTRY_URI
           valueFrom:
             configMapKeyRef:
-              name: dcrx-api-env
+              name: "{{ .Release.Name }}-env"
               key: DOCKER_REGISTRY_URI
         - name: DCRX_API_SECRET_KEY
           valueFrom:
@@ -67,5 +77,5 @@ spec:
               name: dcrx-api-secrets
               key: DOCKER_REGISTRY_PASSWORD
       volumes:
-        - name: dcrx-api-storage
+        - name: "{{ .Release.Name }}-storage"
           emptyDir: {}

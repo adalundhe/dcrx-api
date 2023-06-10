@@ -63,9 +63,9 @@ class DatabaseConnection(Generic[T]):
 
         elif self.engine is None and self.config.database_type == 'asyncpg':
             self.engine = create_async_engine(
+                self.config.database_uri,
                 user=self.config.database_username,
                 password=self.config.database_password,
-                host=self.config.database_uri,
                 database=self.config.database_name
             )
 

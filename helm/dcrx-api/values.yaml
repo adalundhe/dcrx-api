@@ -11,8 +11,9 @@ image:
 env:
   DCRX_API_WORKERS: 10
   DCRX_API_TOKEN_EXPIRATION_MINUTES: 15
-  DCRX_API_DATABASE_TYPE: sqlite
+  DCRX_API_DATABASE_TYPE: asyncpg
   DCRX_API_DATABASE_URI: "sqlite+aiosqlite:///dcrx"
+  DCRX_API_DATABASE_USER: postgres
   DOCKER_REGISTRY_URI: "https://docker.io/v1/<YOUT_REGISTRY_HERE>"
 
 
