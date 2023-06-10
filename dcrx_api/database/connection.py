@@ -69,7 +69,7 @@ class DatabaseConnection(Generic[T]):
                     f'{self.config.database_username}:{self.config.database_password}@'
                 )
 
-            connection_string.append(self.config.database_uri)
+            connection_string.append(f'{self.config.database_uri}:5432')
 
             if self.config.database_name:
                 connection_string.append(self.config.database_name)
