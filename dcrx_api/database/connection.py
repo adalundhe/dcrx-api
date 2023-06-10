@@ -69,8 +69,12 @@ class DatabaseConnection(Generic[T]):
                     f'{self.config.database_username}:{self.config.database_password}@'
                 )
 
+            database_port = self.config.database_port
+            if database_port is None:
+                database_port = 5432
+
             connection_string.append(
-                f'{self.config.database_uri}:{self.config.database_port}'
+                f'{self.config.database_uri}:{database_port}'
             )
 
             if self.config.database_name:
