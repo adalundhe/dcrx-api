@@ -12,3 +12,4 @@ python-dotenv
 click
 uvicorn[standard]
 sqlalchemy-utils
+psycopg2
