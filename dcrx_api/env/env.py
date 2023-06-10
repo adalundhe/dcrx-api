@@ -22,7 +22,7 @@ class Env(BaseModel):
     DCRX_API_TOKEN_EXPIRATION_MINUTES: StrictInt=30
     DCRX_API_DATABASE_TYPE: Optional[StrictStr]='sqlite'
     DCRX_API_DATABASE_USER: Optional[StrictStr]
-    DCRX_API_DATABASE_URI: StrictStr
+    DCRX_API_DATABASE_URI: Optional[StrictStr]
     DCRX_API_DATABASE_PORT: Optional[StrictInt]
     DCRX_API_DATABASE_PASSWORD: Optional[StrictStr]
     DCRX_API_DATABASE_NAME: StrictStr='dcrx'

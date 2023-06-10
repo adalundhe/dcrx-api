@@ -19,7 +19,6 @@ class JobQueue:
     def __init__(self, env: Env) -> None:
 
         self.pool_size = env.DCRX_API_WORKERS
-        self.push_timeout_minutes = env.DCRX_API_PUSH_TIMEOUT_MINUTES
 
         self.registry_uri = env.DOCKER_REGISTRY_URI
         self.registry_username = env.DOCKER_REGISTRY_USERNAME
@@ -51,7 +50,7 @@ class JobQueue:
         self._jobs[job.job_id] = job
 
         self._active[job.job_id] = asyncio.create_task(
-            job.run(self.push_timeout_minutes)
+            job.run()
         )
 
         return job.metadata

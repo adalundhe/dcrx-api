@@ -67,14 +67,7 @@ class Job:
         self.image.layers.insert(1, dcrx_api_label)
         self.job_image_label = f'{dcrx_api_label.name}={dcrx_api_label.value}'
     
-        self.push_timeout_minutes: Union[int, None] = None
-
-    async def run(
-        self,
-        timeout: int
-    ):
-
-        self.push_timeout_minutes = timeout
+    async def run(self):
         
         await self.connection.create([
             self.metadata

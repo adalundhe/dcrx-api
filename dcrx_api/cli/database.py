@@ -21,7 +21,36 @@ async def create_user(
     connection = UsersConnection(env)
     connection.setup()
 
-    engine_url = connection.engine.url
+    if connection.config.database_type == 'mysql':
+        engine_url = ['mysql://']
+        
+    elif connection.config.database_type == 'asyncpg':
+        engine_url = ['postgresql://']
+
+    else:
+        engine_url = ['sqlite://']
+
+    if connection.config.database_username and connection.config.database_password:
+        engine_url.append(
+            f'{connection.config.database_username}:{connection.config.database_password}@'
+        )
+
+    if connection.config.database_port:
+        engine_url.append(
+            f'{connection.config.database_uri}:{connection.config.database_port}/{connection.config.database_name}'
+        )
+
+    elif connection.config.database_uri:
+        engine_url.append(
+            f'{connection.config.database_uri}/{connection.config.database_name}'
+        )
+
+    else:
+        engine_url.append(
+            f'/{connection.config.database_name}'
+        )
+
+    engine_url = ''.join(engine_url)
 
     api_database_exists = await loop.run_in_executor(
         None,

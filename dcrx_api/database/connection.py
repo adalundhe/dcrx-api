@@ -49,6 +49,36 @@ class DatabaseConnection(Generic[T]):
         self.loop: Union[asyncio.AbstractEventLoop, None] = None
 
     def setup(self):
+
+        if self.config.database_type == 'asyncpg':
+            engine_url = ['postgresql+asyncpg://']
+
+        elif self.config.database_type == 'sqlite':
+            engine_url = ['sqlite+aiosqlite://']
+
+        if self.config.database_username and self.config.database_password:
+            engine_url.append(
+                f'{self.config.database_username}:{self.config.database_password}@'
+            )
+
+        if self.config.database_port:
+            engine_url.append(
+                f'{self.config.database_uri}:{self.config.database_port}/{self.config.database_name}'
+            )
+
+        elif self.config.database_uri:
+            engine_url.append(
+                f'{self.config.database_uri}/{self.config.database_name}'
+            )
+
+        else:
+            engine_url.append(
+                f'/{self.config.database_name}'
+            )
+
+
+        engine_url = ''.join(engine_url)
+
         if self.engine is None and self.config.database_type == 'mysql':
             self.engine = create_engine(
                 user=self.config.database_username,
@@ -60,27 +90,10 @@ class DatabaseConnection(Generic[T]):
 
         elif self.engine is None and self.config.database_type == 'asyncpg':
             
-            connection_string = ['postgresql+asyncpg://']
-            
-            if self.config.database_username and self.config.database_password:
-                connection_string.append(
-                    f'{self.config.database_username}:{self.config.database_password}@'
-                )
-
-            database_port = self.config.database_port
-            if database_port is None:
-                database_port = 5432
-
-            connection_string.append(
-                f'{self.config.database_uri}:{database_port}/{self.config.database_name}'
-            )
-
-            connection_string = ''.join(connection_string)
-
-            self.engine = create_async_engine(connection_string)
+            self.engine = create_async_engine(engine_url)
 
         elif self.engine is None and self.config.database_type == 'sqlite':
-            self.engine = create_async_engine(self.config.database_uri)
+            self.engine = create_async_engine(engine_url)
 
     async def connect(self):
         self.loop = asyncio.get_event_loop()    
