@@ -48,9 +48,7 @@ class DatabaseConnection(Generic[T]):
 
         self.loop: Union[asyncio.AbstractEventLoop, None] = None
 
-    async def connect(self):
-        self.loop = asyncio.get_event_loop()
-
+    def setup(self):
         if self.engine is None and self.config.database_type == 'mysql':
             self.engine = create_engine(
                 user=self.config.database_username,
@@ -83,6 +81,12 @@ class DatabaseConnection(Generic[T]):
 
         elif self.engine is None and self.config.database_type == 'sqlite':
             self.engine = create_async_engine(self.config.database_uri)
+
+    async def connect(self):
+        self.loop = asyncio.get_event_loop()    
+
+        if self.engine is None:
+            self.setup()
 
         self.connection = await self.engine.connect()
 

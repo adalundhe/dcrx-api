@@ -1,10 +1,12 @@
-import uuid
 import asyncio
+import functools
 import click
+import uuid
 from dcrx_api.env import load_env, Env
 from dcrx_api.services.auth.manager import AuthorizationSessionManager
 from dcrx_api.services.users.connection import UsersConnection
 from dcrx_api.services.users.models import DBUser, NewUser
+from sqlalchemy_utils import database_exists, create_database
 from typing import Dict, Any
 
 
@@ -13,8 +15,30 @@ async def create_user(
     user: Dict[str, Any],
     env: Env,
 ):
-    
+
+    loop = asyncio.get_event_loop()
+
     connection = UsersConnection(env)
+    connection.setup()
+
+    engine_url = connection.engine.url
+
+    api_database_exists = await loop.run_in_executor(
+        None,
+        functools.partial(
+            database_exists,
+            engine_url
+        )
+    )
+
+    if not api_database_exists:
+        await loop.run_in_executor(
+            None,
+            functools.partial(
+                create_database,
+                engine_url
+            )
+        )
 
     auth = AuthorizationSessionManager(env)
     await auth.connect()

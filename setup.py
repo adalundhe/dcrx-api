@@ -63,19 +63,23 @@ setup(
             'aiomysql',
             'asyncpg',
             'sqlalchemy',
-            'aiosqlite'
+            'aiosqlite',
+            'sqlalchemy-utils'
         ],
         'mysql': [
             'aiomysql',
-            'sqlalchemy'
+            'sqlalchemy',
+            'sqlalchemy-utils'
         ],
         'postgres': [
             'asyncpg',
-            'sqlalchemy'
+            'sqlalchemy',
+            'sqlalchemy-utils'
         ],
         'sqlite': [
             'aiosqlite',
-            'sqlalchemy'
+            'sqlalchemy',
+            'sqlalchemy-utils'
         ]
     },
     python_requires='>=3.10'
