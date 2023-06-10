@@ -26,6 +26,26 @@ spec:
             mountPath: /var/lib/docker
             subPath: docker
         env:
+        - name: DCRX_API_MAX_MEMORY_PERCENT_USAGE
+          valueFrom:
+            configMapKeyRef:
+              name: "{{ .Release.Name }}-env"
+              key: DCRX_API_MAX_MEMORY_PERCENT_USAGE
+        - name: DCRX_API_JOB_PRUNE_INTERVAL
+          valueFrom:
+            configMapKeyRef:
+              name: "{{ .Release.Name }}-env"
+              key: DCRX_API_JOB_PRUNE_INTERVAL
+        - name: DCRX_API_JOB_MAX_AGE
+          valueFrom:
+            configMapKeyRef:
+              name: "{{ .Release.Name }}-env"
+              key: DCRX_API_JOB_MAX_AGE
+        - name: DCRX_API_JOB_POOL_SIZE
+          valueFrom:
+            configMapKeyRef:
+              name: "{{ .Release.Name }}-env"
+              key: DCRX_API_JOB_POOL_SIZE
         - name: DCRX_API_JOB_WORKERS
           valueFrom:
             configMapKeyRef:

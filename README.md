@@ -4,14 +4,14 @@
 [![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](https://github.com/scorbettUM/dcrx-api/blob/main/CODE_OF_CONDUCT.md)
 [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/dcrx-api)](https://pypi.org/project/dcrx-api/)
 
-Dcrx-api is a RESTful implementation of the dcrx library, allowing you to create Docker images on request! Dcrx-api extends dcrx, providing integrations with the Docker API and dcrx that allow images to be built by making REST requests.
+DCRX-API is a RESTful implementation of the dcrx library, allowing you to create Docker images on request! DCRX-API extends dcrx, providing integrations with the Docker API and dcrx that allow images to be built by making REST requests.
 
-Dcrx-api also includes basic JWT authorization and user management (no-RBAC), and is intended to be deployed as an internal-facing service. dcrx also provides OpenAPI documentation to make getting started intuitive, and features integrations with SQLite, Postgres, and MySQL for storing and managing users.
+DCRX-API also includes basic JWT authorization and user management (no-RBAC), and is intended to be deployed as an internal-facing service. dcrx also provides OpenAPI documentation to make getting started intuitive, and features integrations with SQLite, Postgres, and MySQL for storing and managing users.
 
 
 # Setup and Installation
 
-Dcrx-api is available both as a Docker image and as a PyPi package. For local use, we recommend using PyPi, Python 3.10+, and a virtual environment. To install, run:
+DCRX-API is available both as a Docker image and as a PyPi package. For local use, we recommend using PyPi, Python 3.10+, and a virtual environment. To install, run:
 
 ```bash
 python -m venv ~/.dcrx && \
@@ -28,16 +28,20 @@ docker pull adalundhe/dcrx-api:latest
 
 # Getting Started
 
-Dcrx-api requires a slew of environmental variables in order to run correctly. These include:
+DCRX-API requires a slew of environmental variables in order to run correctly. These include:
 
 ```
-DCRX_API_JOB_MAX_AGE='1m'
+DCRX_API_MAX_MEMORY_PERCENT_USAGE=50 # The percent of system memory DCRX-API and Docker image builds created by DCRX-API can use. If exceeded, new jobs will be rejected and requests will return a 400 error.
+
+DCRX_API_JOB_PRUNE_INTERVAL='1s' # How often dcrx-api checks for done, failed, or cancelled jobs to remove from in-memory storage.
+
+DCRX_API_JOB_MAX_AGE='1m'= # Time before done, failed, or cancelled jobs are pruned from in-memory storage.
 
 DCRX_API_JOB_POOL_SIZE=10 # Maximum number of concurrent builds. Default is 10.
 
 DCRX_API_JOB_WORKERS=4 # Number of workers to use per-job. Default is the number os OS threads.
 
-=15m # Time in minutes for JWT authorization token to expire. Default is 15 minutes.
+DCRX_API_TOKEN_EXPIRATION='15m' # Time for JWT authorization token to expire. Default is 15 minutes.
 
 DCRX_API_SECRET_KEY=testingthis # Initial secret used to hash user passwords.
 
