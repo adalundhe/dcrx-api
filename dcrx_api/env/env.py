@@ -23,6 +23,7 @@ class Env(BaseModel):
     DCRX_API_DATABASE_TYPE: Optional[StrictStr]='sqlite'
     DCRX_API_DATABASE_USER: Optional[StrictStr]
     DCRX_API_DATABASE_URI: StrictStr
+    DCRX_API_DATABASE_PORT: Optional[StrictInt]
     DCRX_API_DATABASE_PASSWORD: Optional[StrictStr]
     DCRX_API_DATABASE_NAME: StrictStr='dcrx'
     DOCKER_REGISTRY_URI: StrictStr
@@ -41,6 +42,7 @@ class Env(BaseModel):
             'DCRX_API_DATABASE_PASSWORD': str,
             'DCRX_API_DATABASE_NAME': str,
             'DCRX_API_DATABASE_URI': str,
+            'DCRX_API_DATABASE_PORT': int,
             'DOCKER_REGISTRY_URI': str,
             'DOCKER_REGISTRY_USERNAME': str,
             'DOCKER_REGISTRY_PASSWORD': str

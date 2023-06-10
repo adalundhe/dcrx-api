@@ -61,6 +61,11 @@ spec:
             configMapKeyRef:
               name: "{{ .Release.Name }}-env"
               key: DOCKER_REGISTRY_URI
+        - name: DCRX_API_DATABASE_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: "{{ .Release.Name }}-env"
+              key: DCRX_API_DATABASE_PORT
         - name: DCRX_API_SECRET_KEY
           valueFrom:
             secretKeyRef:

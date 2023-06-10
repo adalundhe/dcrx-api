@@ -21,6 +21,7 @@ class JobsConnection(DatabaseConnection[JobMetadata]):
                 database_password=env.DCRX_API_DATABASE_PASSWORD,
                 database_type=env.DCRX_API_DATABASE_TYPE,
                 database_uri=env.DCRX_API_DATABASE_URI,
+                database_port=env.DCRX_API_DATABASE_PORT,
                 database_name=env.DCRX_API_DATABASE_NAME
             )
         )
