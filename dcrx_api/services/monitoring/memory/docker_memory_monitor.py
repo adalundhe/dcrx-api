@@ -50,12 +50,18 @@ class DockerMemoryMonitor(BaseMonitor):
         process_memory_stats: List[float] = []
 
         for pid in self.docker_process_ids:
-            process = psutil.Process(pid)
-            mem_info = process.memory_info()
 
-            process_memory_stats.append(
-                int(mem_info.rss/10**6)
-            )
+            try:
+
+                process = psutil.Process(pid)
+                mem_info = process.memory_info()
+
+                process_memory_stats.append(
+                    int(mem_info.rss/10**6)
+                )
+
+            except (psutil.NoSuchProcess, RuntimeError):
+                pass
 
         total_memory_usage = sum(process_memory_stats) + total_active_images_memory
 
