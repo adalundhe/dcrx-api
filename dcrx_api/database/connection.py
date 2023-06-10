@@ -74,11 +74,8 @@ class DatabaseConnection(Generic[T]):
                 database_port = 5432
 
             connection_string.append(
-                f'{self.config.database_uri}:{database_port}'
+                f'{self.config.database_uri}:{database_port}/{self.config.database_name}'
             )
-
-            if self.config.database_name:
-                connection_string.append(self.config.database_name)
 
             connection_string = ''.join(connection_string)
 

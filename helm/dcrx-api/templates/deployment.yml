@@ -42,10 +42,7 @@ spec:
               name: "{{ .Release.Name }}-env"
               key: DCRX_API_DATABASE_TYPE
         - name: DCRX_API_DATABASE_URI
-          valueFrom:
-            configMapKeyRef:
-              name: "{{ .Release.Name }}-env"
-              key: DCRX_API_DATABASE_URI
+          value: "{{ .Release.Name }}-postgresql"
         - name: DCRX_API_DATABASE_USER
           valueFrom:
             configMapKeyRef:
