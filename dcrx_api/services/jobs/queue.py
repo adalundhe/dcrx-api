@@ -120,18 +120,22 @@ class JobQueue:
         self,
         connection: JobsConnection,
         image: Image, 
+        registry: Optional[Registry]=None,
         build_options: Optional[BuildOptions]=None
     ) -> JobMetadata:
-
-        job = Job(
-            connection,
-            image,
-            Registry(
+        
+        if registry is None:
+            registry = Registry(
                 registry_uri=self.registry_uri,
                 registry_user=self.registry_username,
                 registry_password=self.registry_password
                 
-            ),
+            )
+
+        job = Job(
+            connection,
+            image,
+            registry,
             build_options=build_options,
             pool_size=self.pool_size
         )

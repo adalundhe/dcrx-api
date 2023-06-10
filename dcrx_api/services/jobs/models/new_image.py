@@ -22,6 +22,7 @@ from dcrx.layers import (
 )
 from typing import List, Union, Optional
 from .build_options import BuildOptions
+from .registry import Registry
 
 
 Layer = Union[
@@ -46,5 +47,6 @@ class NewImage(BaseModel):
     name: StrictStr
     tag: StrictStr='latest'
     files: Optional[List[StrictStr]]
+    registry: Optional[Registry]
     build_options: Optional[BuildOptions]
     layers: conlist(Layer, min_items=1)

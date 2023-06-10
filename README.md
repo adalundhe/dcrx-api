@@ -59,11 +59,11 @@ DCRX_API_DATABASE_URI=sqlite+aiosqlite:///dcrx # URL/URI of SQL database for sto
 
 DCRX_API_DATABASE_PORT=3369 # Port of SQL database for storing users and job metadata.
 
-DOCKER_REGISTRY_URI=https://docker.io/v1/myrepo/test-images # Docker image registry to push images to.
+DOCKER_REGISTRY_URI=https://docker.io/v1/myrepo/test-images # Default Docker image registry to push images to.
 
-DOCKER_REGISTRY_USERNAME=test # Username to authenticate Docker pushes to the provided registry.
+DOCKER_REGISTRY_USERNAME=test # Default Username to authenticate Docker pushes to the provided registry.
 
-DOCKER_REGISTRY_PASSWORD=test-repo-password # Password to authenticate Docker pushes to the provided registry.
+DOCKER_REGISTRY_PASSWORD=test-repo-password # Default Password to authenticate Docker pushes to the provided registry.
 ```
 
 Prior to starting the server, we recommend seeding the database with an initial user. To do so, run the command:
@@ -171,3 +171,31 @@ The chart creates three replica dcrx-api pods, a LoadBalancer service, and Nginx
 1. Does dcrx-api require a volume to run? - Yes. While dcrx-api builds images in-memory, Docker still (frustratingly) requires that a physical file be present in the build directory. This means that, if running dcrx-api in Docker or via Kubernetes, you will need to have a volume with the correct permissions mounted.
 
 2. Does the dcrx-api Docker image require root? - Currently yes. The dcrx-api image is based on the latest version of Docker's `dind` image, which runs as and requires root privlidges. We're working on getting the rootless version of `dind` working though!
+
+3. Can I push to a registry besides the default? - Yes. New image job requests can be submitted with optional Registry configuration. For example:
+
+```
+{
+  "name": "hello-world",
+  "tag": "latest",
+  "registry": {
+    "registry_url": "https://docker.io/v1/mytest/registry",
+    "registry_user": "DockerUser100",
+    "registry_password": "MyDockerHubToken999*"
+  },
+  "layers": [
+    {
+      "layer_type": "stage",
+      "base": "python",
+      "tag": "3.11-slim"
+    },
+    {
+        "layer_type": "entrypoint",
+        "command": [
+            "echo",
+            "Hello world!"
+        ]
+    }
+  ]
+}
+```

@@ -58,7 +58,7 @@ jobs_router = APIRouter()
         }
     }
 )
-async def start_job(new_image: NewImage) -> JobMetadata:
+async def create_job(new_image: NewImage) -> JobMetadata:
 
     job_service_context = context.get(ContextType.JOB_SERVICE)
     monitoring_service_context = context.get(ContextType.MONITORING_SERVICE)
@@ -108,6 +108,7 @@ async def start_job(new_image: NewImage) -> JobMetadata:
         return job_service_context.queue.submit(
             job_service_context.connection,
             dcrx_image,
+            registry=new_image.registry,
             build_options=new_image.build_options
         )
 
