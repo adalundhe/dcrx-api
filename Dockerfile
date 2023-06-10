@@ -4,6 +4,7 @@ ENV PYTHONUNBUFFERED=1
 COPY requirements.txt /tmp/requirements.txt
 COPY README.md /README.md
 COPY .version /.version
+
 COPY ./scripts/start.sh /start.sh
 RUN chmod +x /start.sh
 
