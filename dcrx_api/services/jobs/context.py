@@ -17,6 +17,7 @@ class JobServiceContext(BaseModel):
         arbitrary_types_allowed = True
 
     async def initialize(self):
+        await self.queue.start()
         await self.connection.connect()
         await self.connection.init()
 

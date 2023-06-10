@@ -20,10 +20,26 @@ from dcrx.layers import (
     Volume,
     Workdir
 )
-
-
 from typing import List, Union, Optional
 from .build_options import BuildOptions
+
+
+Layer = Union[
+    Add,
+    Arg,
+    Cmd,
+    Copy,
+    Entrypoint,
+    Env,
+    Expose,
+    Healthcheck,
+    Label,
+    Run,
+    Stage,
+    User,
+    Volume,
+    Workdir
+]
 
 
 class NewImage(BaseModel):
@@ -31,19 +47,4 @@ class NewImage(BaseModel):
     tag: StrictStr='latest'
     files: Optional[List[StrictStr]]
     build_options: Optional[BuildOptions]
-    layers: conlist(Union[
-        Add,
-        Arg,
-        Cmd,
-        Copy,
-        Entrypoint,
-        Env,
-        Expose,
-        Healthcheck,
-        Label,
-        Run,
-        Stage,
-        User,
-        Volume,
-        Workdir
-    ], min_items=1)
+    layers: conlist(Layer, min_items=1)

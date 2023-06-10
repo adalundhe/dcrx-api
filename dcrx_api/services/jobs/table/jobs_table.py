@@ -106,8 +106,7 @@ class JobsTable(Generic[M]):
                 name: self.selected.types_map.get(
                     name
                 )(value) for name, value in job.dict(  
-                    exclude_none=True,
-                    exclude_unset=True
+                    exclude_none=True
                 ).items()
             })
 

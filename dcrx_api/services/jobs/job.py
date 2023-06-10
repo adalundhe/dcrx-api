@@ -5,10 +5,12 @@ import psutil
 import time
 import uuid
 from concurrent.futures import ThreadPoolExecutor
+from docker.models.images import Image as DockerImage
 from dcrx.image import Image, Label
 from dcrx.memory_file import MemoryFile
 from .models import (
     BuildOptions,
+    ImageStats,
     JobMetadata,
     Registry
 )
@@ -16,7 +18,8 @@ from typing import (
     Union, 
     Optional, 
     Dict, 
-    Any
+    Any,
+    List
 )
 from .status import JobStatus
 from .connection import JobsConnection
@@ -66,6 +69,17 @@ class Job:
 
         self.image.layers.insert(1, dcrx_api_label)
         self.job_image_label = f'{dcrx_api_label.name}={dcrx_api_label.value}'
+        self.job_start_time = time.monotonic()
+        self.image_stats = ImageStats()
+
+    async def list(self) -> List[DockerImage]:
+        return await self.loop.run_in_executor(
+            self._executor,
+            functools.partial(
+                self.client.images.list,
+                self.image.name
+            )
+        )
     
     async def run(self):
         
@@ -158,7 +172,7 @@ class Job:
         if self.build_options:
             build_options = self.build_options.dict()
 
-        await self.loop.run_in_executor(
+        image_result = await self.loop.run_in_executor(
             self._executor,
             functools.partial(
                 self.client.images.build,
@@ -171,7 +185,11 @@ class Job:
             )   
         )
 
-
+        image, _ = image_result 
+        self.image_stats = ImageStats(
+            size=int(image.attrs.get('Size', 0)/10**6)
+        )
+        
     async def push_image(self):
 
         self.metadata = JobMetadata(
@@ -180,7 +198,8 @@ class Job:
             image=self.image.name,
             tag=self.image.tag,
             status=JobStatus.PUSHING.value,
-            context=f'Job {self.job_id} pushing image {self.image.full_name} to registry {self.registry.registry_uri}'
+            context=f'Job {self.job_id} pushing image {self.image.full_name} to registry {self.registry.registry_uri}',
+            size=self.image_stats.size
         )
 
         await self.connection.update([
@@ -247,7 +266,8 @@ class Job:
             image=self.image.name,
             tag=self.image.tag,
             status=status.value,
-            context=context
+            context=context,
+            size=self.image_stats.size
         )
         
 
@@ -259,7 +279,9 @@ class Job:
 
         self._executor.shutdown(cancel_futures=True)
         self.client.close()
-        self.context.close()
+
+        if self.context:
+            self.context.close()
         
 
 

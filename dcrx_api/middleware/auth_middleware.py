@@ -34,12 +34,22 @@ class AuthMidlleware(BaseHTTPMiddleware):
         )
 
         if authorization.error:
-            return Response(
+            response = Response(
                 status_code=401,
                 content=json.dumps({
                     'detail': authorization.error
                 })
             )
+
+            if token:
+                response.delete_cookie(
+                    'X-Auth-Token',
+                    httponly=True,
+                    secure=True,
+                    samesite='strict'
+                )
+
+            return response
 
         response = await call_next(request)
         return response

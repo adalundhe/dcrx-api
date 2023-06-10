@@ -1,5 +1,6 @@
 from dcrx_api.services.auth.context import AuthServiceContext
 from dcrx_api.services.jobs.context import JobServiceContext
+from dcrx_api.services.monitoring.context import MonitoringServiceContext
 from dcrx_api.services.users.context import UsersServiceContext
 from typing import Dict, Union, List
 from .types import ContextType
@@ -13,6 +14,7 @@ class ContextManager:
             Union[
                 AuthServiceContext,
                 JobServiceContext, 
+                MonitoringServiceContext,
                 UsersServiceContext
             ]
         ] = {}
@@ -21,6 +23,7 @@ class ContextManager:
     def get(self, context_type: ContextType) -> Union[
         AuthServiceContext,
         JobServiceContext,
+        MonitoringServiceContext,
         UsersServiceContext,
         None
     ]:
@@ -32,6 +35,7 @@ class ContextManager:
             Union[
                 AuthServiceContext,
                 JobServiceContext,
+                MonitoringServiceContext,
                 UsersServiceContext
             ]
         ]

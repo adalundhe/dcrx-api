@@ -1,7 +1,8 @@
 import uuid
 from pydantic import (
     BaseModel,
-    StrictStr
+    StrictStr,
+    StrictInt
 )
 
 
@@ -12,3 +13,4 @@ class JobMetadata(BaseModel):
     tag: StrictStr
     status: StrictStr
     context: StrictStr
+    size: StrictInt=0

@@ -38,6 +38,10 @@ class JobsPostgresTable:
             sqlalchemy.Column(
                 'context',
                 sqlalchemy.TEXT
+            ),
+            sqlalchemy.Column(
+                'size',
+                sqlalchemy.BIGINT
             )
         )
 
@@ -48,6 +52,7 @@ class JobsPostgresTable:
             'tag': self.table.c.tag,
             'status': self.table.c.status,
             'context': self.table.c.context,
+            'size': self.table.c.size
         }
 
         self.types_map = {
@@ -56,7 +61,8 @@ class JobsPostgresTable:
             'image': lambda value: str(value),
             'tag': lambda value: str(value),
             'status': lambda value: str(value),
-            'context': lambda value: str(value)
+            'context': lambda value: str(value),
+            'size': lambda value: int(value)
         }
 
         self.table_type = TableTypes.POSTGRES

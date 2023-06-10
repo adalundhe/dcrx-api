@@ -26,11 +26,11 @@ spec:
             mountPath: /var/lib/docker
             subPath: docker
         env:
-        - name: DCRX_API_WORKERS
+        - name: DCRX_API_JOB_WORKERS
           valueFrom:
             configMapKeyRef:
               name: "{{ .Release.Name }}-env"
-              key: DCRX_API_WORKERS
+              key: DCRX_API_JOB_WORKERS
         - name: DCRX_API_TOKEN_EXPIRATION_MINUTES
           valueFrom:
             configMapKeyRef:

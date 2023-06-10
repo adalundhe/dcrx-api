@@ -13,6 +13,13 @@ from dcrx_api.services.users.context import (
     UsersConnection,
     UsersServiceContext
 )
+from dcrx_api.services.monitoring.context import (
+    CPUMonitor,
+    DockerMemoryMonitor,
+    MemoryMonitor,
+    MonitoringServiceContext
+)
+
 from dcrx_api.context.manager import context
 from .env import load_env, Env
 
@@ -22,20 +29,38 @@ async def lifespan(app: FastAPI):
 
     env = load_env(Env.types_map())
 
+    auth_service_context = AuthServiceContext(
+        env=env,
+        manager=AuthorizationSessionManager(env)
+    )
+
+    job_service_context = JobServiceContext(
+        env=env,
+        queue=JobQueue(env),
+        connection=JobsConnection(env)
+    )
+
+    monitoring_service_context = MonitoringServiceContext(
+        env=env,
+        monitor_name='dcrx.main',
+        cpu=CPUMonitor(),
+        docker_memory=DockerMemoryMonitor(
+            env,
+            job_service_context.queue
+        ),
+        memory=MemoryMonitor()
+    )
+
+    users_service_context = UsersServiceContext(
+        env=env,
+        connection=UsersConnection(env)
+    )
+
     await context.initialize([
-        AuthServiceContext(
-            env=env,
-            manager=AuthorizationSessionManager(env)
-        ),
-        JobServiceContext(
-            env=env,
-            queue=JobQueue(env),
-            connection=JobsConnection(env)
-        ),
-        UsersServiceContext(
-            env=env,
-            connection=UsersConnection(env)
-        )
+        auth_service_context,
+        job_service_context,
+        monitoring_service_context,
+        users_service_context
     ])
 
     yield

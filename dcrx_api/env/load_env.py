@@ -35,9 +35,9 @@ def load_env(
         env_file_values = dotenv_values(dotenv_path=env_file)
 
         for envar_name, envar_value in env_file_values.items():
-            env_file_values[envar_name] = envars.get(
-                envar_name
-            )(envar_value)
+            envar_type = envars.get(envar_name)
+            if envar_type:
+                env_file_values[envar_name] = envar_type(envar_value)
 
         values.update(env_file_values)
 

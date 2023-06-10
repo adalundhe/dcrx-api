@@ -48,8 +48,11 @@ async def login_user(user: LoginUser) -> UserTransactionSuccessResponse:
 
     response.set_cookie(
         key='X-Auth-Token',
-        value=authorization.token,
-        expires=authorization.token_expires
+        value=f'Bearer {authorization.token}',
+        expires=authorization.token_expires,
+        httponly=True,
+        secure=True,
+        samesite='strict'
     )
 
 

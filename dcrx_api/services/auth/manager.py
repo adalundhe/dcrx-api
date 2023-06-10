@@ -5,6 +5,7 @@ from concurrent.futures import ThreadPoolExecutor
 from dcrx_api.env import Env
 from jose import JWTError, jwt
 from fastapi.security import OAuth2PasswordBearer
+from fastapi.security.utils import get_authorization_scheme_param
 from passlib.context import CryptContext
 from typing import (
     Optional,
@@ -29,7 +30,7 @@ class AuthorizationSessionManager:
 
     def __init__(self, env: Env) -> None:
 
-        self.pool_size = env.DCRX_API_WORKERS
+        self.pool_size = env.DCRX_API_JOB_WORKERS
         self.context = CryptContext(
             schemes=["bcrypt"], 
             deprecated="auto"
@@ -163,12 +164,19 @@ class AuthorizationSessionManager:
                     error='No token provided',
                     message='Authentication failed'
                 )
+            
+            scheme, value = get_authorization_scheme_param(token)
+            if scheme.lower() != 'bearer':
+                return AuthResponse(
+                    error='User authorization failed',
+                    message='Authentication failed'
+                )
 
             payload = await self._loop.run_in_executor(
                 self._executor,
                 functools.partial(
                     jwt.decode,
-                    token, 
+                    value, 
                     self.secret_key, 
                     algorithms=[self.auth_algorithm]
                 )
@@ -177,7 +185,7 @@ class AuthorizationSessionManager:
             username: str = payload.get("sub")
             if username is None:
                 return AuthResponse(
-                    error='User not found',
+                    error='User authorization failed',
                     message='Authentication failed'
                 )
             
@@ -197,7 +205,7 @@ class AuthorizationSessionManager:
 
         if len(users) < 1:
             return AuthResponse(
-                error='User not found',
+                error='User authorization failed',
                 message='Authentication failed'
             )
         
