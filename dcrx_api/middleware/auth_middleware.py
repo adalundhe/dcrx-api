@@ -45,8 +45,7 @@ class AuthMidlleware(BaseHTTPMiddleware):
                 response.delete_cookie(
                     'X-Auth-Token',
                     httponly=True,
-                    secure=True,
-                    samesite='strict'
+                    secure=True
                 )
 
             return response

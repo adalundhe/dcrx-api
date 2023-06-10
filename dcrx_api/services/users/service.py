@@ -51,8 +51,7 @@ async def login_user(user: LoginUser) -> UserTransactionSuccessResponse:
         value=f'Bearer {authorization.token}',
         expires=authorization.token_expires,
         httponly=True,
-        secure=True,
-        samesite='strict'
+        secure=True
     )
 
 
