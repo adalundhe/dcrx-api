@@ -1,5 +1,4 @@
 import asyncio
-import os
 from sqlalchemy import Table
 from sqlalchemy.sql import (
     Select,
@@ -62,12 +61,22 @@ class DatabaseConnection(Generic[T]):
             )
 
         elif self.engine is None and self.config.database_type == 'asyncpg':
-            self.engine = create_async_engine(
-                self.config.database_uri,
-                user=self.config.database_username,
-                password=self.config.database_password,
-                database=self.config.database_name
-            )
+            
+            connection_string = ['postgresql+asyncpg://']
+            
+            if self.config.database_username and self.config.database_password:
+                connection_string.append(
+                    f'{self.config.database_username}:{self.config.database_password}@'
+                )
+
+            connection_string.append(self.config.database_uri)
+
+            if self.config.database_name:
+                connection_string.append(self.config.database_name)
+
+            connection_string = ''.join(connection_string)
+
+            self.engine = create_async_engine(connection_string)
 
         elif self.engine is None and self.config.database_type == 'sqlite':
             self.engine = create_async_engine(self.config.database_uri)

@@ -11,7 +11,7 @@ Dcrx-api also includes basic JWT authorization and user management (no-RBAC), an
 
 # Setup and Installation
 
-DCRX is available both as a Docker image and as a PyPi package. For local use, we recommend using PyPi, Python 3.10+, and a virtual environment. To install, run:
+Dcrx-api is available both as a Docker image and as a PyPi package. For local use, we recommend using PyPi, Python 3.10+, and a virtual environment. To install, run:
 
 ```bash
 python -m venv ~/.dcrx && \
@@ -28,7 +28,7 @@ docker pull adalundhe/dcrx-api:latest
 
 # Getting Started
 
-Dcrx requires a slew of environmental variables in order to run correctly. These include:
+Dcrx-api requires a slew of environmental variables in order to run correctly. These include:
 
 ```
 DCRX_API_WORKERS=10 # Number of workers to use for Job executor. Default is the number os OS threads.
