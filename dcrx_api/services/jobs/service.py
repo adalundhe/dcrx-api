@@ -59,7 +59,16 @@ async def get_job(job_id: str) -> JobMetadata:
         if len(retrieved_jobs) < 1:
             raise HTTPException(404, detail=retrieved_job.message)
         
-        retrieved_job = retrieved_jobs.pop()
+        job = retrieved_jobs.pop()
+
+        retrieved_job = JobMetadata(
+            id=job.id,
+            name=job.name,
+            image=job.image,
+            tag=job.tag,
+            status=job.status,
+            context=job.context
+        )
     
     return retrieved_job
 
