@@ -19,6 +19,7 @@ COPY ./setup.py /setup.py
 
 RUN apk add --no-cache gcc libc-dev make \
      python3 py3-pip python3-dev linux-headers \
+     postgresql-dev musl-dev \
     && ln -sf python3 /usr/bin/python \
     && ln -sf pip3 /usr/bin/pip
 

@@ -65,7 +65,7 @@ setup(
             'sqlalchemy',
             'aiosqlite',
             'sqlalchemy-utils',
-            'psycopg2'
+            'psycopg2-binary'
         ],
         'mysql': [
             'aiomysql',
@@ -76,7 +76,7 @@ setup(
             'asyncpg',
             'sqlalchemy',
             'sqlalchemy-utils',
-            'psycopg2'
+            'psycopg2-binary'
         ],
         'sqlite': [
             'aiosqlite',
