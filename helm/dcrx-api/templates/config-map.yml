@@ -4,6 +4,7 @@ metadata:
   name: "{{ .Release.Name }}-env"
 data:
   # property-like keys; each key maps to a simple value
+  DCRX_BOOT_WAIT: "{{ .Value.env.DCRX_BOOT_WAIT }}"
   DCRX_API_MAX_MEMORY_PERCENT_USAGE: "{{ .Values.env.DCRX_API_MAX_MEMORY_PERCENT_USAGE }}"
   DCRX_API_JOB_PRUNE_INTERVAL: "{{ .Values.env.DCRX_API_JOB_PRUNE_INTERVAL }}"
   DCRX_API_JOB_MAX_AGE: "{{ .Values.env.DCRX_API_JOB_MAX_AGE }}"

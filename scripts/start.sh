@@ -2,6 +2,7 @@
 set -e
 HOST=${HOST:-0.0.0.0}
 PORT=${PORT:-2277}
+DCRX_BOOT_WAIT=${DCRX_BOOT_WAIT:-10}
 UVICORN_WORKERS=${UVICORN_WORKERS:-2}
 
 DOCKER_USERNAME=${DOCKER_REGISTRY_USERNAME}
@@ -10,9 +11,9 @@ DOCKER_REGISTRY=${DOCKER_REGISTRY_URI}
 
 PRE_START_PATH=${PRE_START_PATH:-/prestart.sh}
 
-dockerd &
+sleep $DCRX_BOOT_WAIT
 
-sleep 10
+dockerd &
 
 echo "Checking for script in $PRE_START_PATH"
 if [ -f $PRE_START_PATH ] ; then

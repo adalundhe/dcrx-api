@@ -26,6 +26,11 @@ spec:
             mountPath: /var/lib/docker
             subPath: docker
         env:
+        - name: DCRX_BOOT_WAIT
+          valueFrom:
+            configMapKeyRef:
+              name: "{{ .Release.Name }}-env"
+              key: DCRX_BOOT_WAIT
         - name: DCRX_API_MAX_MEMORY_PERCENT_USAGE
           valueFrom:
             configMapKeyRef:

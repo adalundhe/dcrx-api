@@ -35,7 +35,7 @@ class Job:
         build_options: Optional[BuildOptions]=None,
         pool_size: int=psutil.cpu_count()
     ) -> None:
-        
+
         self.job_id = uuid.uuid4()
         self.job_name = image.full_name
 

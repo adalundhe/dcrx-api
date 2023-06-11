@@ -3,7 +3,7 @@ import psutil
 from dcrx_api.env import Env
 from dcrx_api.services.jobs.queue import JobQueue
 from dcrx_api.services.monitoring.base.monitor import BaseMonitor
-from typing import List, Union
+from typing import List
 
 
 class DockerMemoryMonitor(BaseMonitor):
