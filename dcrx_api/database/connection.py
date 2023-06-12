@@ -101,29 +101,42 @@ class DatabaseConnection(Generic[T]):
         if self.engine is None:
             self.setup()
 
-        self.connection = await self.engine.connect()
-
     async def create_table(
         self,
         table: Table
     ):
-        await self.connection.execute(
-            CreateTable(
-                table,
-                if_not_exists=True
-            )
-        )
+        async with self.engine.connect() as connection:
+            try:
+                await connection.execute(
+                    CreateTable(
+                        table,
+                        if_not_exists=True
+                    )
+                )
 
-        await self.connection.commit()
+            except Exception:
+                await connection.rollback()
+
+            await connection.commit()
 
     async def get(
         self, 
         statement: Select
     ) -> List[T]:
-        results = await self.connection.execute(statement)
+        
+        results: List[T] = []
+
+        async with self.engine.connect() as connection:
+            
+            try:
+                results = await connection.execute(statement)
+            
+            except Exception:
+                await connection.rollback()
+
         return [
             row for row in results
-        ]
+        ] 
     
     async def insert_or_update(
         self,
@@ -132,33 +145,52 @@ class DatabaseConnection(Generic[T]):
         ]
     ):
         
-        for statement in statements:
-            await self.connection.execute(statement)
-        
-        await self.connection.commit()
+        async with self.engine.connect() as connection:
+            try:
+                for statement in statements:
+                    await connection.execute(statement)
+
+            except Exception:
+                await connection.rollback()
+            
+
+            await connection.commit()
+
 
     async def delete(
         self,
         statements: List[Delete]
     ):
+        async with self.engine.connect() as connection:
 
-        for statement in statements:
-            await self.connection.execute(statement)
+            try:
+                for statement in statements:
+                    await connection.execute(statement)
+
+            except Exception:
+                await connection.rollback()
         
-        await self.connection.commit()
+            await connection.commit()
 
     async def drop_table(
         self,
         table: Table
     ):
-        await self.connection.execute(
-            DropTable(
-                table,
-                if_exists=True
-            )
-        )
+        async with self.engine.connect() as connection:
+            
+            try:
+                await connection.execute(
+                    DropTable(
+                        table,
+                        if_exists=True
+                    )
+                )
 
-        await self.connection.commit()
+            except Exception:
+                await connection.rollback()
+
+            await connection.commit()
     
     async def close(self):
-        await self.connection.close()
+        if self.connection:
+            await self.connection.close()

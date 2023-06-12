@@ -5,9 +5,10 @@ import subprocess
 import time
 import uuid
 from concurrent.futures import ThreadPoolExecutor
+from docker.models.images import Image as DockerImage
+from docker.errors import ImageNotFound
 from dcrx_api.env import Env
 from dcrx_api.env.time_parser import TimeParser
-from docker.models.images import Image as DockerImage
 from typing import (
     Dict, 
     Union,
@@ -16,7 +17,8 @@ from typing import (
 from .job import Job
 from .models import (
     JobMetadata,
-    JobNotFoundException
+    JobNotFoundException,
+    ServerLimitException
 )
 from .status import JobStatus
 
@@ -29,9 +31,13 @@ class JobQueue:
 
         self._jobs: Dict[uuid.UUID, Job] = {}
         self._active: Dict[uuid.UUID, asyncio.Task] = {}
-        self.pool_guard = asyncio.Semaphore(
-            value=env.DCRX_API_JOB_POOL_SIZE
-        )
+        self.max_jobs = env.DCRX_API_JOB_POOL_SIZE
+        self.max_pending_jobs = env.DCRX_API_JOB_MAX_PENDING
+
+        self.active_jobs_count = 0
+        self.pending_jobs_count = 0
+        self.pending_jobs: List[Job] = []
+
         self._executor = ThreadPoolExecutor(max_workers=env.DCRX_API_JOB_WORKERS)
 
         self._cleanup_task: Union[asyncio.Task, None] = None
@@ -115,6 +121,13 @@ class JobQueue:
 
                 if job_is_pruneable and job_elapsed > self._job_max_age:
 
+                    self.active_jobs_count -= 1
+                    if len(self.pending_jobs) > 0:
+                        pending_job = self.pending_jobs.pop()
+                        pending_job.waiter.set_result(None)
+                        
+                        self.pending_jobs_count -= 1
+
                     images = await self.loop.run_in_executor(
                         self._executor,
                         self.client.images.list,
@@ -122,11 +135,15 @@ class JobQueue:
                     )
 
                     if len(images) > 0:
-                        await self.loop.run_in_executor(
-                            self._executor,
-                            self.client.images.remove,
-                            job.image.name
-                        )
+                        try:
+                            await self.loop.run_in_executor(
+                                self._executor,
+                                self.client.images.remove,
+                                job.image.name
+                            )
+
+                        except ImageNotFound:
+                            pass
 
                     del self._jobs[job_id]
 
@@ -145,13 +162,30 @@ class JobQueue:
         await job.clear()
         await job.close()
 
-    def submit(self, job: Job) -> JobMetadata:
+    async def submit(self, job: Job) -> JobMetadata:
+
+        if self.active_jobs_count >= self.max_jobs and self.pending_jobs_count < self.max_pending_jobs:
+            job.waiter = asyncio.Future()
+
+        elif self.active_jobs_count >= self.max_jobs:
+            return ServerLimitException(
+                message='Pending jobs quota reached. Please try again later.',
+                limit=self.max_pending_jobs,
+                current=self.pending_jobs_count
+            )
 
         self._jobs[job.job_id] = job
 
         self._active[job.job_id] = asyncio.create_task(
             job.run()
         )
+
+        if job.waiter:
+            self.pending_jobs.append(job)
+            self.pending_jobs_count += 1
+
+        else:
+            self.active_jobs_count += 1
 
         return job.metadata
 

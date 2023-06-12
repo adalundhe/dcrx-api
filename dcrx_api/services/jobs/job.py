@@ -79,6 +79,7 @@ class Job:
 
         self.image_stats = ImageStats()
         self.client_closed = False
+        self.waiter: Union[asyncio.Future, None]=None
 
     async def list(self) -> List[DockerImage]:
         return await self.loop.run_in_executor(
@@ -90,6 +91,26 @@ class Job:
         )
     
     async def run(self):
+
+
+        if self.waiter:
+            self.metadata = JobMetadata(
+                id=self.job_id,
+                image_registry=self.registry.registry_uri,
+                name=self.job_name,
+                image=self.image.name,
+                tag=self.image.tag,
+                status=JobStatus.PENDING.value,
+                context=f'Job {self.job_id} pending'
+            )
+
+            await self.connection.update([
+                self.metadata
+            ], filters={
+                'id': self.job_id
+            })
+            await self.waiter
+
         try:
             await asyncio.wait_for(
                 asyncio.create_task(
@@ -122,6 +143,7 @@ class Job:
             await self.close()
   
     async def _run(self):
+
         await self.connection.create([
             self.metadata
         ])

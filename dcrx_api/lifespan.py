@@ -15,7 +15,6 @@ from dcrx_api.services.users.context import (
 )
 from dcrx_api.services.monitoring.context import (
     CPUMonitor,
-    DockerMemoryMonitor,
     MemoryMonitor,
     MonitoringServiceContext
 )
@@ -48,10 +47,6 @@ async def lifespan(app: FastAPI):
         env=env,
         monitor_name='dcrx.main',
         cpu=CPUMonitor(),
-        docker_memory=DockerMemoryMonitor(
-            env,
-            job_service_context.queue
-        ),
         memory=MemoryMonitor()
     )
 

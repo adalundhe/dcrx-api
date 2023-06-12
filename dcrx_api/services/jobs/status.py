@@ -2,6 +2,7 @@ from enum import Enum
 
 
 class JobStatus(Enum):
+    PENDING='PENDING'
     AUTHORIZING='AUTHORIZING'
     BUILDING='BUILDING'
     CANCELLED='CANCELLED'

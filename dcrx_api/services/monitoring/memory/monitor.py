@@ -1,4 +1,3 @@
-import os
 import psutil
 from dcrx_api.services.monitoring.base.monitor import BaseMonitor
 
@@ -14,15 +13,8 @@ class MemoryMonitor(BaseMonitor):
         return self.active.get(precentile_usage_metric, 0)
 
     def update_monitor(self, monitor_name: str):
-        process = psutil.Process(os.getpid())
-        mem_info = process.memory_info()
 
-        memory_percent_used = int(mem_info.rss/10**6)
-
-        self.active[monitor_name] = memory_percent_used
+        self.active[monitor_name] = int(psutil.virtual_memory().used/10**6)
 
         precentile_usage_metric = f'{monitor_name}_pct_usage'
-        self.active[precentile_usage_metric] = round(
-            memory_percent_used/self.total_memory,
-            3
-        )
+        self.active[precentile_usage_metric] = psutil.virtual_memory().percent

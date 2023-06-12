@@ -27,7 +27,7 @@ from .models import (
     JobMetadata,
     JobNotFoundException,
     NewImage,
-    ServerMemoryLimitException
+    ServerLimitException
 )
 
 Layer = List[
@@ -55,13 +55,14 @@ jobs_router = APIRouter()
 
 @jobs_router.post(
     "/jobs/images/create",
+    status_code=202,
     responses={
-        400: {
-            'model': ServerMemoryLimitException
-        },
         404: {
             'model': RegistryNotFoundException
-        }
+        },
+        429: {
+            'model': ServerLimitException
+        },
     }
 )
 async def create_job(new_image: NewImage) -> JobMetadata:
@@ -72,80 +73,88 @@ async def create_job(new_image: NewImage) -> JobMetadata:
     auth_service_context = context.get(ContextType.AUTH_SERVICE)
 
     if monitoring_service_context.exceeded_memory_limit:
-        raise HTTPException(400, detail={
-            "message": "Cannot schedule job - memory limit exceeded.",
+        raise HTTPException(429, detail={
+            "message": "Will not schedule job - memory limit exceeded.",
             "limit": monitoring_service_context.env.DCRX_API_MAX_MEMORY_PERCENT_USAGE,
             "current": monitoring_service_context.get_memory_usage_pct()
         })
+    
+    registries = await registry_service_context.connection.select(
+        filters={
+            'registry_name': new_image.registry.registry_name
+        }
+    )
 
-    async with job_service_context.queue.pool_guard:
+    if len(registries) < 1:
 
-        registries = await registry_service_context.connection.select(
-            filters={
-                'registry_name': new_image.registry.registry_name
-            }
-        )
+        raise HTTPException(404, detail={
+            "message": "Registry not found."
+        })
+        
+    registry = registries.pop()
 
-        if len(registries) < 1:
+    dcrx_image = Image(
+        new_image.name,
+        tag=new_image.tag
+    )
 
-            raise HTTPException(404, detail={
-                "message": "Registry not found."
-            })
+    layers: Layer = new_image.layers
+
+    for layer in layers:
+
+        if layer.layer_type == 'add':
+            layer = RemoteAdd(
+                source=layer.source,
+                destination=layer.destination,
+                user_id=layer.user_id,
+                group_id=layer.group_id,
+                permissions=layer.permissions,
+                checksum=layer.checksum,
+                link=layer.link
+            )
+
+        elif layer.layer_type == 'copy':
+            layer = RemoteAdd(
+                source=layer.source,
+                destination=layer.destination,
+                user_id=layer.user_id,
+                group_id=layer.group_id,
+                permissions=layer.permissions,
+                link=layer.link
+            )
+
+        dcrx_image.layers.append(layer)
+
+    decrypted_password = await auth_service_context.manager.decrypt_fernet(
+        registry.registry_password
+    )
+
+    job = Job(
+        job_service_context.connection,
+        dcrx_image,
+        Registry(
+            id=registry.id,
+            registry_name=registry.registry_name,
+            registry_uri=registry.registry_uri,
+            registry_user=registry.registry_user,
+            registry_password=decrypted_password
+        ),
+        build_options=new_image.build_options,
+        pool_size=job_service_context.queue.pool_size,
+        timeout=job_service_context.env.DCRX_API_JOB_TIMEOUT,
+    )
+
+    response = await job_service_context.queue.submit(job)
+
+    if isinstance(response, ServerLimitException):
+        raise HTTPException(429, detail={
+            "message": response.message,
+            "limit": response.limit,
+            "current": response.current
             
-        registry = registries.pop()
-
-        dcrx_image = Image(
-            new_image.name,
-            tag=new_image.tag
-        )
-
-        layers: Layer = new_image.layers
-
-        for layer in layers:
-
-            if layer.layer_type == 'add':
-                layer = RemoteAdd(
-                    source=layer.source,
-                    destination=layer.destination,
-                    user_id=layer.user_id,
-                    group_id=layer.group_id,
-                    permissions=layer.permissions,
-                    checksum=layer.checksum,
-                    link=layer.link
-                )
-
-            elif layer.layer_type == 'copy':
-                layer = RemoteAdd(
-                    source=layer.source,
-                    destination=layer.destination,
-                    user_id=layer.user_id,
-                    group_id=layer.group_id,
-                    permissions=layer.permissions,
-                    link=layer.link
-                )
-
-            dcrx_image.layers.append(layer)
-
-        decrypted_password = await auth_service_context.manager.decrypt_fernet(
-            registry.registry_password
-        )
-
-        job = Job(
-            job_service_context.connection,
-            dcrx_image,
-            Registry(
-                id=registry.id,
-                registry_name=registry.registry_name,
-                registry_uri=registry.registry_uri,
-                registry_user=registry.registry_user,
-                registry_password=decrypted_password
-            ),
-            build_options=new_image.build_options,
-            pool_size=job_service_context.queue.pool_size,
-            timeout=job_service_context.env.DCRX_API_JOB_TIMEOUT,
-        )
-
-        return job_service_context.queue.submit(job)
+        })
+    
+    return response
 
 
 @jobs_router.get(
