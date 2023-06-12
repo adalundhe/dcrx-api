@@ -8,11 +8,12 @@ from concurrent.futures import ThreadPoolExecutor
 from docker.models.images import Image as DockerImage
 from dcrx.image import Image, Label
 from dcrx.memory_file import MemoryFile
+from dcrx_api.env.time_parser import TimeParser
+from dcrx_api.services.registry.models import Registry
 from .models import (
     BuildOptions,
     ImageStats,
-    JobMetadata,
-    Registry
+    JobMetadata
 )
 from typing import (
     Union, 
@@ -33,7 +34,8 @@ class Job:
         image: Image, 
         registry: Registry,
         build_options: Optional[BuildOptions]=None,
-        pool_size: int=psutil.cpu_count()
+        pool_size: int=psutil.cpu_count(),
+        timeout: str='10m',
     ) -> None:
 
         self.job_id = uuid.uuid4()
@@ -55,6 +57,7 @@ class Job:
 
         self.metadata = JobMetadata(
             id=self.job_id,
+            image_registry=self.registry.registry_uri,
             name=self.job_name,
             image=self.image.name,
             tag=self.image.tag,
@@ -68,8 +71,12 @@ class Job:
         )
 
         self.image.layers.insert(1, dcrx_api_label)
+        self.job_pool_size = pool_size
         self.job_image_label = f'{dcrx_api_label.name}={dcrx_api_label.value}'
+        
         self.job_start_time = time.monotonic()
+        self.timeout = TimeParser(timeout).time
+
         self.image_stats = ImageStats()
         self.client_closed = False
 
@@ -83,7 +90,38 @@ class Job:
         )
     
     async def run(self):
+        try:
+            await asyncio.wait_for(
+                asyncio.create_task(
+                    self._run(),
+                ),
+                timeout=self.timeout
+            )
         
+        except (asyncio.CancelledError, asyncio.TimeoutError,):
+
+            self.error = Exception(f'Job {self.job_id} timed out')
+
+            self.metadata = JobMetadata(
+                id=self.job_id,
+                image_registry=self.registry.registry_uri,
+                name=self.job_name,
+                image=self.image.name,
+                tag=self.image.tag,
+                status=JobStatus.FAILED.value,
+                context=f'Job timed out.'
+            )
+
+            await self.connection.update([
+                self.metadata
+            ], filters={
+                'id': self.job_id
+            })
+
+            await self.clear()
+            await self.close()
+  
+    async def _run(self):
         await self.connection.create([
             self.metadata
         ])
@@ -104,6 +142,7 @@ class Job:
 
         self.metadata = JobMetadata(
             id=self.job_id,
+            image_registry=self.registry.registry_uri,
             name=self.job_name,
             image=self.image.name,
             tag=self.image.tag,
@@ -132,6 +171,7 @@ class Job:
 
         self.metadata = JobMetadata(
             id=self.job_id,
+            image_registry=self.registry.registry_uri,
             name=self.job_name,
             image=self.image.name,
             tag=self.image.tag,
@@ -155,6 +195,7 @@ class Job:
 
         self.metadata = JobMetadata(
             id=self.job_id,
+            image_registry=self.registry.registry_uri,
             name=self.job_name,
             image=self.image.name,
             tag=self.image.tag,
@@ -195,6 +236,7 @@ class Job:
 
         self.metadata = JobMetadata(
             id=self.job_id,
+            image_registry=self.registry.registry_uri,
             name=self.job_name,
             image=self.image.name,
             tag=self.image.tag,
@@ -219,6 +261,18 @@ class Job:
         )
 
     async def clear(self):
+
+        await self.loop.run_in_executor(
+            self._executor,
+            self.client.api.prune_builds
+        )
+
+        await self.loop.run_in_executor(
+            self._executor,
+            functools.partial(      
+                self.client.api.prune_images
+            )
+        )
 
         for layer in self.image.layers:
             if layer.layer_type == 'stage':
@@ -253,16 +307,13 @@ class Job:
         )
 
 
-    async def close(
-        self,
-        cancelled: bool=False    
-    ):
+    async def close(self):
 
         if self.error is None:
             status = JobStatus.DONE
             context = f'Job {self.job_id} complete'
 
-        elif cancelled:
+        elif self.metadata.status == JobStatus.CANCELLED.value:
             status = JobStatus.CANCELLED
             context = f'Job {self.job_id} cancelled'
 
@@ -272,6 +323,7 @@ class Job:
 
         self.metadata = JobMetadata(
             id=self.job_id,
+            image_registry=self.registry.registry_uri,
             name=self.job_name,
             image=self.image.name,
             tag=self.image.tag,
@@ -287,14 +339,21 @@ class Job:
             'id': self.job_id
         })
 
-        self._executor.shutdown(cancel_futures=True)
-
         if self.client_closed is False:
-            self.client.close()
+            await self.loop.run_in_executor(
+                None,
+                self.client.close
+            )
             self.client_closed = True
 
         if self.context:
-            self.context.close()
+            await self.loop.run_in_executor(
+                self._executor,
+                self.context.close
+            )
+
+        
+        self._executor.shutdown(cancel_futures=True)
         
 
 

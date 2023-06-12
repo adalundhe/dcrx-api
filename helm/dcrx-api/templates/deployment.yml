@@ -36,6 +36,11 @@ spec:
             configMapKeyRef:
               name: "{{ .Release.Name }}-env"
               key: DCRX_API_MAX_MEMORY_PERCENT_USAGE
+        - name: DCRX_API_JOB_TIMEOUT
+          valueFrom:
+            configMapKeyRef:
+              name: "{{ .Release.Name }}-env"
+              key: DCRX_API_JOB_TIMEOUT
         - name: DCRX_API_JOB_PRUNE_INTERVAL
           valueFrom:
             configMapKeyRef:
@@ -78,11 +83,6 @@ spec:
             secretKeyRef:
               name: "{{ .Release.Name }}-postgresql"
               key: postgres-password
-        - name: DOCKER_REGISTRY_URI
-          valueFrom:
-            configMapKeyRef:
-              name: "{{ .Release.Name }}-env"
-              key: DOCKER_REGISTRY_URI
         - name: DCRX_API_DATABASE_PORT
           valueFrom:
             configMapKeyRef:
@@ -93,16 +93,6 @@ spec:
             secretKeyRef:
               name: dcrx-api-secrets
               key: DCRX_API_SECRET_KEY
-        - name: DOCKER_REGISTRY_USERNAME
-          valueFrom:
-            secretKeyRef:
-              name: dcrx-api-secrets
-              key: DOCKER_REGISTRY_USERNAME
-        - name: DOCKER_REGISTRY_PASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: dcrx-api-secrets
-              key: DOCKER_REGISTRY_PASSWORD
       volumes:
         - name: "{{ .Release.Name }}-storage"
           emptyDir: {}

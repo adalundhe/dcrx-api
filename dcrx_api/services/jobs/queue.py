@@ -1,20 +1,19 @@
 import asyncio
-import uuid
+import docker
+import functools
+import subprocess
 import time
+import uuid
+from concurrent.futures import ThreadPoolExecutor
 from dcrx_api.env import Env
 from dcrx_api.env.time_parser import TimeParser
-from dcrx.image import Image
 from docker.models.images import Image as DockerImage
-from .models import BuildOptions
-from .models import Registry
 from typing import (
-    Optional, 
     Dict, 
     Union,
     List
 )
 from .job import Job
-from .connection import JobsConnection
 from .models import (
     JobMetadata,
     JobNotFoundException
@@ -28,15 +27,12 @@ class JobQueue:
 
         self.pool_size = env.DCRX_API_JOB_WORKERS
 
-        self.registry_uri = env.DOCKER_REGISTRY_URI
-        self.registry_username = env.DOCKER_REGISTRY_USERNAME
-        self.registry_password = env.DOCKER_REGISTRY_PASSWORD
-
         self._jobs: Dict[uuid.UUID, Job] = {}
         self._active: Dict[uuid.UUID, asyncio.Task] = {}
         self.pool_guard = asyncio.Semaphore(
             value=env.DCRX_API_JOB_POOL_SIZE
         )
+        self._executor = ThreadPoolExecutor(max_workers=env.DCRX_API_JOB_WORKERS)
 
         self._cleanup_task: Union[asyncio.Task, None] = None
         self._job_max_age = TimeParser(env.DCRX_API_JOB_MAX_AGE).time
@@ -44,6 +40,11 @@ class JobQueue:
         self._run_cleanup = True
         self.active_images: List[DockerImage] = []
         self.cancelling: List[asyncio.Task] = []
+        self.client = docker.DockerClient(
+            max_pool_size=env.DCRX_API_JOB_WORKERS
+        )
+        self.completed: List[str] = []
+        self.loop = asyncio.get_event_loop()
 
     async def get_active_images(self) -> List[DockerImage]:
 
@@ -81,6 +82,21 @@ class JobQueue:
     async def _monitor_jobs(self):
         while self._run_cleanup:
 
+            await self.loop.run_in_executor(
+                self._executor,
+                functools.partial(
+                    subprocess.run,
+                    [
+                        "docker",
+                        "system",
+                        "prune",
+                        "-f"
+                    ],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE
+                )
+            )
+
             self.active_images = await self.get_active_images()
 
             queue_jobs = dict(self._jobs)
@@ -98,6 +114,20 @@ class JobQueue:
                     )
 
                 if job_is_pruneable and job_elapsed > self._job_max_age:
+
+                    images = await self.loop.run_in_executor(
+                        self._executor,
+                        self.client.images.list,
+                        job.image.name
+                    )
+
+                    if len(images) > 0:
+                        await self.loop.run_in_executor(
+                            self._executor,
+                            self.client.images.remove,
+                            job.image.name
+                        )
+
                     del self._jobs[job_id]
 
             
@@ -109,36 +139,13 @@ class JobQueue:
             await asyncio.sleep(self._job_prune_interval)
 
     async def _cancel_task(self, job: Job):
-        
-        job.client.close()
+
         job.client_closed = True
 
         await job.clear()
-        await job.close(cancelled=True)
+        await job.close()
 
-    def submit(
-        self,
-        connection: JobsConnection,
-        image: Image, 
-        registry: Optional[Registry]=None,
-        build_options: Optional[BuildOptions]=None
-    ) -> JobMetadata:
-        
-        if registry is None:
-            registry = Registry(
-                registry_uri=self.registry_uri,
-                registry_user=self.registry_username,
-                registry_password=self.registry_password
-                
-            )
-
-        job = Job(
-            connection,
-            image,
-            registry,
-            build_options=build_options,
-            pool_size=self.pool_size
-        )
+    def submit(self, job: Job) -> JobMetadata:
 
         self._jobs[job.job_id] = job
 
@@ -191,6 +198,7 @@ class JobQueue:
         
         cancelled_job.metadata = JobMetadata(
             id=cancelled_job.job_id,
+            image_registry=cancelled_job.registry.registry_uri,
             name=cancelled_job.job_name,
             image=cancelled_job.image.name,
             tag=cancelled_job.image.tag,
@@ -208,10 +216,19 @@ class JobQueue:
         self._run_cleanup = False
         await self._cleanup_task
 
+        await self.loop.run_in_executor(
+            self._executor,
+            self.client.close
+        )
+
         for job in self._active.values():
             if not job.done():
                 job.cancel()
 
         for job in self._jobs.values():
-            await job.close()
+            if job.client_closed is False:
+                await job.close()
+
+        self._executor.shutdown(cancel_futures=True)
+
             

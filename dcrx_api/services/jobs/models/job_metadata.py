@@ -2,12 +2,14 @@ import uuid
 from pydantic import (
     BaseModel,
     StrictStr,
-    StrictInt
+    StrictInt,
+    HttpUrl
 )
 
 
 class JobMetadata(BaseModel):
     id: uuid.UUID
+    image_registry: HttpUrl
     name: StrictStr
     image: StrictStr
     tag: StrictStr

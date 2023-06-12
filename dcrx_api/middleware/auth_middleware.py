@@ -15,6 +15,9 @@ class AuthMidlleware(BaseHTTPMiddleware):
         users_service_context = context.get(ContextType.USERS_SERVICE)
 
         allowed_urls = [
+            '/docs',
+            '/openapi.json',
+            '/favicon.ico',
             "/users/login"
         ]
         

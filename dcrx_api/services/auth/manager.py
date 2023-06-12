@@ -1,6 +1,8 @@
 import asyncio
+import base64
 import datetime
 import functools
+from cryptography.fernet import Fernet
 from concurrent.futures import ThreadPoolExecutor
 from dcrx_api.env import Env
 from jose import JWTError, jwt
@@ -45,6 +47,12 @@ class AuthorizationSessionManager:
         self._executor: Union[ThreadPoolExecutor, None] = None
         self._loop: Union[asyncio.AbstractEventLoop, None] = None
 
+        fernet_key = base64.urlsafe_b64encode(
+            self.secret_key.encode().ljust(32)[:32]
+        )
+
+        self._encrypter = Fernet(fernet_key)
+
     async def connect(self):
         self._loop = asyncio.get_event_loop()
         self._executor = ThreadPoolExecutor(max_workers=self.pool_size)
@@ -57,6 +65,28 @@ class AuthorizationSessionManager:
                 password
             )
         )
+    
+    async def encrypt_fernet(self, password: str):
+        encrypted_password = await self._loop.run_in_executor(
+            self._executor,
+            functools.partial(
+                self._encrypter.encrypt,
+                password.encode()
+            )
+        )
+
+        return encrypted_password.decode()
+    
+    async def decrypt_fernet(self, password: str):
+        decrypted_password = await self._loop.run_in_executor(
+            self._executor,
+            functools.partial(
+                self._encrypter.decrypt,
+                password.encode()
+            )
+        )
+
+        return decrypted_password.decode()
 
     async def authenticate_user(
         self,

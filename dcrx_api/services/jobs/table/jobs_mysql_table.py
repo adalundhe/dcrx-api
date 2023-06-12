@@ -16,7 +16,11 @@ class JobsMySQLTable:
                 'id', 
                 sqlalchemy.String(36),
                 primary_key=True,
-                default=uuid.uuid4
+                default=lambda: str(uuid.uuid4())
+            ),
+            sqlalchemy.Column(
+                'image_registry', 
+                sqlalchemy.TEXT
             ),
             sqlalchemy.Column(
                 'name',
@@ -46,6 +50,7 @@ class JobsMySQLTable:
 
         self.columns = {
             'id': self.table.c.id,
+            'image_registry': self.table.c.image_registry,
             'name': self.table.c.name,
             'image': self.table.c.image,
             'tag': self.table.c.tag,
@@ -56,6 +61,7 @@ class JobsMySQLTable:
 
         self.types_map = {
             'id': lambda value: str(value),
+            'image_registry': lambda value: str(value),
             'name': lambda value: str(value),
             'image': lambda value: str(value),
             'tag': lambda value: str(value),

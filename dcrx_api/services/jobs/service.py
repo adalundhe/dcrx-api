@@ -1,6 +1,8 @@
 import uuid
 from dcrx import Image
 from dcrx_api.context.manager import context, ContextType
+from dcrx_api.services.registry.context import RegistryServiceContext
+from dcrx_api.services.registry.models import Registry, RegistryNotFoundException
 from fastapi import APIRouter, HTTPException
 from dcrx.layers import (
     Add,
@@ -19,6 +21,7 @@ from dcrx.layers import (
     Workdir
 )
 from typing import List, Union
+from .job import Job
 from .models import (
     RemoteAdd,
     JobMetadata,
@@ -55,6 +58,9 @@ jobs_router = APIRouter()
     responses={
         400: {
             'model': ServerMemoryLimitException
+        },
+        404: {
+            'model': RegistryNotFoundException
         }
     }
 )
@@ -62,7 +68,8 @@ async def create_job(new_image: NewImage) -> JobMetadata:
 
     job_service_context = context.get(ContextType.JOB_SERVICE)
     monitoring_service_context = context.get(ContextType.MONITORING_SERVICE)
-    
+    registry_service_context: RegistryServiceContext = context.get(ContextType.REGISTRY_SERVICE)
+    auth_service_context = context.get(ContextType.AUTH_SERVICE)
 
     if monitoring_service_context.exceeded_memory_limit:
         raise HTTPException(400, detail={
@@ -72,6 +79,20 @@ async def create_job(new_image: NewImage) -> JobMetadata:
         })
 
     async with job_service_context.queue.pool_guard:
+
+        registries = await registry_service_context.connection.select(
+            filters={
+                'registry_name': new_image.registry.registry_name
+            }
+        )
+
+        if len(registries) < 1:
+
+            raise HTTPException(404, detail={
+                "message": "Registry not found."
+            })
+            
+        registry = registries.pop()
 
         dcrx_image = Image(
             new_image.name,
@@ -105,12 +126,26 @@ async def create_job(new_image: NewImage) -> JobMetadata:
 
             dcrx_image.layers.append(layer)
 
-        return job_service_context.queue.submit(
+        decrypted_password = await auth_service_context.manager.decrypt_fernet(
+            registry.registry_password
+        )
+
+        job = Job(
             job_service_context.connection,
             dcrx_image,
-            registry=new_image.registry,
-            build_options=new_image.build_options
+            Registry(
+                id=registry.id,
+                registry_name=registry.registry_name,
+                registry_uri=registry.registry_uri,
+                registry_user=registry.registry_user,
+                registry_password=decrypted_password
+            ),
+            build_options=new_image.build_options,
+            pool_size=job_service_context.queue.pool_size,
+            timeout=job_service_context.env.DCRX_API_JOB_TIMEOUT,
         )
+
+        return job_service_context.queue.submit(job)
 
 
 @jobs_router.get(
@@ -144,6 +179,7 @@ async def get_job(job_id: str) -> JobMetadata:
 
         retrieved_job = JobMetadata(
             id=job.id,
+            image_registry=job.image_registry,
             name=job.name,
             image=job.image,
             tag=job.tag,

@@ -16,7 +16,7 @@ class UsersSQLiteTable:
                 'id', 
                 sqlalchemy.BLOB,
                 primary_key=True,
-                default=uuid.uuid4
+                default=lambda: str(uuid.uuid4)
             ),
             sqlalchemy.Column(
                 'username',

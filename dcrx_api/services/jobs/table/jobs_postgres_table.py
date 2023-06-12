@@ -20,6 +20,10 @@ class JobsPostgresTable:
                 default=uuid.uuid4
             ),
             sqlalchemy.Column(
+                'image_registry', 
+                sqlalchemy.TEXT
+            ),
+            sqlalchemy.Column(
                 'name',
                 sqlalchemy.TEXT
             ),
@@ -47,6 +51,7 @@ class JobsPostgresTable:
 
         self.columns = {
             'id': self.table.c.id,
+            'image_registry': self.table.c.image_registry,
             'name': self.table.c.name,
             'image': self.table.c.image,
             'tag': self.table.c.tag,
@@ -57,6 +62,7 @@ class JobsPostgresTable:
 
         self.types_map = {
             'id': lambda value: uuid.UUID(value),
+            'image_registry': lambda value: str(value),
             'name': lambda value: str(value),
             'image': lambda value: str(value),
             'tag': lambda value: str(value),

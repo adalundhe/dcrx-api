@@ -19,6 +19,10 @@ from dcrx_api.services.monitoring.context import (
     MemoryMonitor,
     MonitoringServiceContext
 )
+from dcrx_api.services.registry.context import (
+    RegistryConnection,
+    RegistryServiceContext
+)
 
 from dcrx_api.context.manager import context
 from .env import load_env, Env
@@ -51,6 +55,11 @@ async def lifespan(app: FastAPI):
         memory=MemoryMonitor()
     )
 
+    registry_service_context = RegistryServiceContext(
+        env=env,
+        connection=RegistryConnection(env)
+    )
+
     users_service_context = UsersServiceContext(
         env=env,
         connection=UsersConnection(env)
@@ -60,6 +69,7 @@ async def lifespan(app: FastAPI):
         auth_service_context,
         job_service_context,
         monitoring_service_context,
+        registry_service_context,
         users_service_context
     ])
 

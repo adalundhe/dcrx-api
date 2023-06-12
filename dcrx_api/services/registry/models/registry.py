@@ -1,3 +1,4 @@
+import uuid
 from pydantic import (
     BaseModel,
     StrictStr
@@ -5,6 +6,8 @@ from pydantic import (
 
 
 class Registry(BaseModel):
+    id: uuid.UUID
+    registry_name: StrictStr
     registry_uri: StrictStr
     registry_user: StrictStr
     registry_password: StrictStr

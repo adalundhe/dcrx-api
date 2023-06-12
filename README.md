@@ -31,6 +31,8 @@ docker pull adalundhe/dcrx-api:latest
 DCRX-API requires a slew of environmental variables in order to run correctly. These include:
 
 ```
+DCRX_API_JOB_TIMEOUT=10m # The maximum amount of time before an image build + push job times out and is cancelled.
+
 DCRX_API_MAX_MEMORY_PERCENT_USAGE=50 # The percent of system memory DCRX-API and Docker image builds created by DCRX-API can use. If exceeded, new jobs will be rejected and requests will return a 400 error.
 
 DCRX_API_JOB_PRUNE_INTERVAL='1s' # How often dcrx-api checks for done, failed, or cancelled jobs to remove from in-memory storage.
@@ -59,11 +61,6 @@ DCRX_API_DATABASE_URI=sqlite+aiosqlite:///dcrx # URL/URI of SQL database for sto
 
 DCRX_API_DATABASE_PORT=3369 # Port of SQL database for storing users and job metadata.
 
-DOCKER_REGISTRY_URI=https://docker.io/v1/myrepo/test-images # Default Docker image registry to push images to.
-
-DOCKER_REGISTRY_USERNAME=test # Default Username to authenticate Docker pushes to the provided registry.
-
-DOCKER_REGISTRY_PASSWORD=test-repo-password # Default Password to authenticate Docker pushes to the provided registry.
 ```
 
 Prior to starting the server, we recommend seeding the database with an initial user. To do so, run the command:
@@ -95,12 +92,28 @@ and navigate to `localhost:2277/docs`, where you'll find dcrx-api's OpenAPI docu
 
 From here, we'll need to authenticate using the initial user we created above. Open the tab for `/users/login`, and for the `username` and `password` fields enter the username and password of the initial user, then click `Execute`. A `200` status response containg the initial user's username and id should return.
 
+Before creating and pushing any images, we need to create a Registry. Navigate to the `/registry/create` tab. We'll need to provide a `registry_name` (unique shortand reference of our choosing), `registry_uri` (HTTP url to the registry), `registry_user`, and `registry_password:
+
+```json
+{
+  "registry_name": "hello-world",
+  "registry_uri": "https://docker.io/v1/testreg/hello-world",
+  "registry_user": "testuser",
+  "registry_password": "testpassword1*"
+}
+```
+
+Submit the request. DCRX-API will take the information, encrypt the registry password, and store it.
+
 Next navigate to the `/jobs/images/create` tab. As before, we'll need to fill out some data. Go ahead and copy paste the below into the input for the request body:
 
 ```json
 {
-  "name": "hello-world",
+  "name": "testreg/hello-world",
   "tag": "latest",
+  "registry": {
+    "registry_name": "hello-world"
+  },
   "layers": [
     {
       "layer_type": "stage",
@@ -118,7 +131,7 @@ Next navigate to the `/jobs/images/create` tab. As before, we'll need to fill ou
 }
 ```
 
-A dcrx-api image build request requires, at-minimum, a `name`, `tag` and one or more `layer` objects, which will be processed and build in-order of appearance. Note that each layer object almost exactly corresponds to its `dcrx` call. The above corresponds exactly to:
+A dcrx-api image build request requires, at-minimum, a `name`, `tag`, `registry_name`, and one or more `layer` objects, which will be processed and build in-order of appearance. Note that each layer object almost exactly corresponds to its `dcrx` call. The above corresponds exactly to:
 
 ```python
 
@@ -135,7 +148,7 @@ hello_world.stage(
 ])
 ```
 
-Go ahead and submit the request via the `Execute` button. This will start a job to build the specified image and push it to the repository specified in dcrx-api's environmental variables.
+Go ahead and submit the request via the `Execute` button. This will start a job to build the specified image and push it to the repository specified in the request.
 
 Note that dcrx-api doesn't wait for the image to be built, instead returning a `JobMetadata` response with a status code of `200`, including the `job_id`. Building images is time-intensive and could potentially bog down a server, so dcrx-api builds and pushes images in the background. We can use the `job_id` of a Job to make further `GET` requests to the `/jobs/images/{job_id}/get` endpoint to monitor and check how our job is progressing. If we need to cancel a job for any reason, we can simple make a `DELETE` request to `/jobs/images/{job_id}/cancel`.
 
@@ -171,31 +184,3 @@ The chart creates three replica dcrx-api pods, a LoadBalancer service, and Nginx
 1. Does dcrx-api require a volume to run? - Yes. While dcrx-api builds images in-memory, Docker still (frustratingly) requires that a physical file be present in the build directory. This means that, if running dcrx-api in Docker or via Kubernetes, you will need to have a volume with the correct permissions mounted.
 
 2. Does the dcrx-api Docker image require root? - Currently yes. The dcrx-api image is based on the latest version of Docker's `dind` image, which runs as and requires root privlidges. We're working on getting the rootless version of `dind` working though!
-
-3. Can I push to a registry besides the default? - Yes. New image job requests can be submitted with optional Registry configuration. For example:
-
-```
-{
-  "name": "hello-world",
-  "tag": "latest",
-  "registry": {
-    "registry_url": "https://docker.io/v1/mytest/registry",
-    "registry_user": "DockerUser100",
-    "registry_password": "MyDockerHubToken999*"
-  },
-  "layers": [
-    {
-      "layer_type": "stage",
-      "base": "python",
-      "tag": "3.11-slim"
-    },
-    {
-        "layer_type": "entrypoint",
-        "command": [
-            "echo",
-            "Hello world!"
-        ]
-    }
-  ]
-}
-```
