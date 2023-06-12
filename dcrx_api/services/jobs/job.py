@@ -5,6 +5,10 @@ import psutil
 import time
 import uuid
 from concurrent.futures import ThreadPoolExecutor
+from docker.errors import (
+    ImageNotFound,
+    APIError
+)
 from docker.models.images import Image as DockerImage
 from dcrx.image import Image, Label
 from dcrx.memory_file import MemoryFile
@@ -13,7 +17,8 @@ from dcrx_api.services.registry.models import Registry
 from .models import (
     BuildOptions,
     ImageStats,
-    JobMetadata
+    JobMetadata,
+    JobStepResult
 )
 from typing import (
     Union, 
@@ -36,6 +41,7 @@ class Job:
         build_options: Optional[BuildOptions]=None,
         pool_size: int=psutil.cpu_count(),
         timeout: str='10m',
+        wait_timeout: str='10m'
     ) -> None:
 
         self.job_id = uuid.uuid4()
@@ -76,9 +82,10 @@ class Job:
         
         self.job_start_time = time.monotonic()
         self.timeout = TimeParser(timeout).time
+        self.pending_timeout = TimeParser(wait_timeout).time
 
         self.image_stats = ImageStats()
-        self.client_closed = False
+        self.shutdown = False
         self.waiter: Union[asyncio.Future, None]=None
 
     async def list(self) -> List[DockerImage]:
@@ -91,7 +98,6 @@ class Job:
         )
     
     async def run(self):
-
 
         if self.waiter:
             self.metadata = JobMetadata(
@@ -109,7 +115,16 @@ class Job:
             ], filters={
                 'id': self.job_id
             })
-            await self.waiter
+
+            try:
+                await asyncio.wait_for(
+                    self.waiter,
+                    timeout=self.pending_timeout
+                )
+
+            except (asyncio.CancelledError, asyncio.TimeoutError,):
+                await self.cancel()
+                return 
 
         try:
             await asyncio.wait_for(
@@ -120,47 +135,61 @@ class Job:
             )
         
         except (asyncio.CancelledError, asyncio.TimeoutError,):
+            await self.cancel()
 
-            self.error = Exception(f'Job {self.job_id} timed out')
 
-            self.metadata = JobMetadata(
-                id=self.job_id,
-                image_registry=self.registry.registry_uri,
-                name=self.job_name,
-                image=self.image.name,
-                tag=self.image.tag,
-                status=JobStatus.FAILED.value,
-                context=f'Job timed out.'
-            )
+    async def _run(self) -> JobStepResult:
 
-            await self.connection.update([
-                self.metadata
-            ], filters={
-                'id': self.job_id
-            })
-
-            await self.clear()
-            await self.close()
-  
-    async def _run(self):
-
-        await self.connection.create([
+        response = await self.connection.create([
             self.metadata
         ])
 
+        if response.error:
+            self.error = response.error
+            return JobStepResult(
+                message='Failed to connect to database',
+                error=self.error
+            )
+        
+        job_step_result = JobStepResult(
+            message='Job successfully initialized'
+        )
+
         try:
-            await self.login_to_registry()
-            await self.assemble_context()
-            await self.build_image()
-            await self.push_image()
+            job_step_result = await self.login_to_registry()
+            job_step_result = await self.assemble_context()
+            job_step_result = await self.build_image()
+            job_step_result = await self.push_image()
 
         except Exception as job_exception:
             self.error = job_exception
+            job_step_result = JobStepResult(
+                message='Job failed',
+                error=str(job_exception)
+            )
 
-        await self.clear()
-        await self.close()
+        return job_step_result
+    
+    async def cancel(self):
+        self.error = Exception(f'Job {self.job_id} timed out')
 
-    async def login_to_registry(self):
+        self.metadata = JobMetadata(
+            id=self.job_id,
+            image_registry=self.registry.registry_uri,
+            name=self.job_name,
+            image=self.image.name,
+            tag=self.image.tag,
+            status=JobStatus.FAILED.value,
+            context=f'Job timed out.'
+        )
+
+        await self.connection.update([
+            self.metadata
+        ], filters={
+            'id': self.job_id
+        })
+
+    async def login_to_registry(self) -> JobStepResult:
 
         self.metadata = JobMetadata(
             id=self.job_id,
@@ -172,11 +201,18 @@ class Job:
             context=f'Job {self.job_id} authorizing to registry {self.registry.registry_uri}'
         )
 
-        await self.connection.update([
+        response = await self.connection.update([
             self.metadata
         ], filters={
             'id': self.job_id
         })
+
+        if response.error:
+            self.error = response.error
+            return JobStepResult(
+                message='Job metadata update failed',
+                error=response.error
+            )
 
         await self.loop.run_in_executor(
             self._executor,
@@ -189,7 +225,11 @@ class Job:
             )
         )
 
-    async def assemble_context(self):
+        return JobStepResult(
+            message='Registry login succeeded'
+        )
+
+    async def assemble_context(self) -> JobStepResult:
 
         self.metadata = JobMetadata(
             id=self.job_id,
@@ -201,19 +241,29 @@ class Job:
             context=f'Job {self.job_id} generating image {self.image.full_name}'
         )
 
-        await self.connection.update([
+        response = await self.connection.update([
             self.metadata
         ], filters={
             'id': self.job_id
         })
+
+        if response.error:
+            self.error = response.error
+            return JobStepResult(
+                message='Job metadata update failed',
+                error=response.error
+            )
 
         self.context = await self.loop.run_in_executor(
             self._executor,
             self.image.to_context
         )
 
+        return JobStepResult(
+            message='DCRX image successfully assembled'
+        )
 
-    async def build_image(self):
+    async def build_image(self) -> JobStepResult:
 
         self.metadata = JobMetadata(
             id=self.job_id,
@@ -225,11 +275,18 @@ class Job:
             context=f'Job {self.job_id} building image {self.image.full_name}'
         )
 
-        await self.connection.update([
+        response = await self.connection.update([
             self.metadata
         ], filters={
             'id': self.job_id
         })
+
+        if response.error:
+            self.error = response.error
+            return JobStepResult(
+                message='Job metadata update failed',
+                error=response.error
+            )
 
         build_options: Dict[str, Any] = {}
 
@@ -253,8 +310,12 @@ class Job:
         self.image_stats = ImageStats(
             size=int(image.attrs.get('Size', 0)/10**6)
         )
+
+        return JobStepResult(
+            message='Docker image successfully built'
+        )
         
-    async def push_image(self):
+    async def push_image(self) -> JobStepResult:
 
         self.metadata = JobMetadata(
             id=self.job_id,
@@ -267,11 +328,18 @@ class Job:
             size=self.image_stats.size
         )
 
-        await self.connection.update([
+        response = await self.connection.update([
             self.metadata
         ], filters={
             'id': self.job_id
         })
+
+        if response.error:
+            self.error = response.error
+            return JobStepResult(
+                message='Job metadata update failed',
+                error=response.error
+            )
 
         await self.loop.run_in_executor(
             self._executor,
@@ -282,54 +350,18 @@ class Job:
             )
         )
 
-    async def clear(self):
-
-        await self.loop.run_in_executor(
-            self._executor,
-            self.client.api.prune_builds
-        )
-
-        await self.loop.run_in_executor(
-            self._executor,
-            functools.partial(      
-                self.client.api.prune_images
-            )
-        )
-
-        for layer in self.image.layers:
-            if layer.layer_type == 'stage':
-
-                try:
-                    await self.loop.run_in_executor(
-                        self._executor,
-                        functools.partial(
-                            self.client.images.remove,
-                            f'{layer.base}:{layer.tag}'
-                        )
-                    )
-                
-                except Exception:
-                    pass
-
-        try:
-            await self.loop.run_in_executor(
-                self._executor,
-                functools.partial(
-                    self.client.images.remove,
-                    self.image.full_name
-                )
-            )
-
-        except Exception:
-            pass
-
-        await self.loop.run_in_executor(
-            self._executor,
-            self.image.clear
+        return JobStepResult(
+            message='Docker image successfully pushed'
         )
 
 
     async def close(self):
+
+        self.shutdown = True
+        if self._executor and self._executor._shutdown:
+            self._executor = None
+
+        await self._clear()
 
         if self.error is None:
             status = JobStatus.DONE
@@ -361,12 +393,10 @@ class Job:
             'id': self.job_id
         })
 
-        if self.client_closed is False:
-            await self.loop.run_in_executor(
-                None,
-                self.client.close
-            )
-            self.client_closed = True
+        await self.loop.run_in_executor(
+            None,
+            self.client.close
+        )
 
         if self.context:
             await self.loop.run_in_executor(
@@ -374,10 +404,56 @@ class Job:
                 self.context.close
             )
 
+        if self._executor:
+            self._executor.shutdown(cancel_futures=True)
         
-        self._executor.shutdown(cancel_futures=True)
+    async def _clear(self):
+
+        try:
+            await self.loop.run_in_executor(
+                self._executor,
+                self.client.api.prune_builds
+            )
+
+            await self.loop.run_in_executor(
+                self._executor,
+                functools.partial(      
+                    self.client.api.prune_images
+                )
+            )
         
+        except APIError:
+            pass
 
+        for layer in self.image.layers:
+            if layer.layer_type == 'stage':
 
+                try:
+                    await self.loop.run_in_executor(
+                        self._executor,
+                        functools.partial(
+                            self.client.images.remove,
+                            f'{layer.base}:{layer.tag}'
+                        )
+                    )
+                
+                except ImageNotFound:
+                    pass
 
+        try:
+            await self.loop.run_in_executor(
+                self._executor,
+                functools.partial(
+                    self.client.images.remove,
+                    self.image.full_name
+                )
+            )
+
+        except ImageNotFound:
+            pass
+
+        await self.loop.run_in_executor(
+            self._executor,
+            self.image.clear
+        )
     

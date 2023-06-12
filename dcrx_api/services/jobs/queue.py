@@ -14,6 +14,7 @@ from typing import (
     Union,
     List
 )
+from .connection import JobsConnection
 from .job import Job
 from .models import (
     JobMetadata,
@@ -25,10 +26,15 @@ from .status import JobStatus
 
 class JobQueue:
 
-    def __init__(self, env: Env) -> None:
+    def __init__(
+        self, 
+        env: Env,
+        connection: JobsConnection
+    ) -> None:
 
         self.pool_size = env.DCRX_API_JOB_WORKERS
 
+        self._connection = connection
         self._jobs: Dict[uuid.UUID, Job] = {}
         self._active: Dict[uuid.UUID, asyncio.Task] = {}
         self.max_jobs = env.DCRX_API_JOB_POOL_SIZE
@@ -36,7 +42,10 @@ class JobQueue:
 
         self.active_jobs_count = 0
         self.pending_jobs_count = 0
-        self.pending_jobs: List[Job] = []
+        self.running_jobs = asyncio.Queue(maxsize=self.max_jobs)
+        self.pending_jobs = asyncio.Queue(maxsize=self.max_pending_jobs)
+
+        self.completed: List[asyncio.Task] = []
 
         self._executor = ThreadPoolExecutor(max_workers=env.DCRX_API_JOB_WORKERS)
 
@@ -45,11 +54,10 @@ class JobQueue:
         self._job_prune_interval = TimeParser(env.DCRX_API_JOB_PRUNE_INTERVAL).time
         self._run_cleanup = True
         self.active_images: List[DockerImage] = []
-        self.cancelling: List[asyncio.Task] = []
         self.client = docker.DockerClient(
             max_pool_size=env.DCRX_API_JOB_WORKERS
         )
-        self.completed: List[str] = []
+
         self.loop = asyncio.get_event_loop()
 
     async def get_active_images(self) -> List[DockerImage]:
@@ -106,27 +114,22 @@ class JobQueue:
             self.active_images = await self.get_active_images()
 
             queue_jobs = dict(self._jobs)
+
+            pruneable_statuses = ['DONE', 'CANCELLED', 'FAILED']
             
             for job_id, job in queue_jobs.items():
                 
                 job_elapsed = time.monotonic() - job.job_start_time
-                job_is_pruneable = job.metadata.status in ['DONE', 'CANCELLED', 'FAILED']
+                job_is_pruneable = job.metadata.status in pruneable_statuses
 
-                if job.metadata.status == 'CANCELLED':
-                    self.cancelling.append(
+                if job.metadata.status in pruneable_statuses:
+                    self.completed.append(
                         asyncio.create_task(
-                            self._cancel_task(job)
+                            job.close()
                         )
                     )
 
                 if job_is_pruneable and job_elapsed > self._job_max_age:
-
-                    self.active_jobs_count -= 1
-                    if len(self.pending_jobs) > 0:
-                        pending_job = self.pending_jobs.pop()
-                        pending_job.waiter.set_result(None)
-                        
-                        self.pending_jobs_count -= 1
 
                     images = await self.loop.run_in_executor(
                         self._executor,
@@ -148,24 +151,46 @@ class JobQueue:
                     del self._jobs[job_id]
 
             
-            cancelling_tasks = list(self.cancelling)
-            for cancel_task in cancelling_tasks:
-                if cancel_task.done():
-                    self.cancelling.remove(cancel_task)
+            for _ in range(self.active_jobs_count):
+                job: Job = await self.running_jobs.get()
+                job_is_pruneable = job.metadata.status in pruneable_statuses
+
+                if job_is_pruneable is False:
+                    await self.running_jobs.put(job)
+
+                elif self.pending_jobs_count > 0:
+                    await self.running_jobs.put(
+                        await self.pending_jobs.get()
+                    )
+
+                    self.active_jobs_count = self.running_jobs.qsize()
+                    self.pending_jobs_count = self.pending_jobs.qsize()
+
+            for _ in range(self.pending_jobs_count):
+                job: Job = await self.pending_jobs.get()
+                job_is_pruneable = job.metadata.status in pruneable_statuses
+
+                if job_is_pruneable is False:
+                    await self.pending_jobs.put(job)
+
+            self.pending_jobs_count = self.pending_jobs.qsize()
+
+
+            self.active_jobs_count = self.running_jobs.qsize()
+            
+            completed_tasks = list(self.completed)
+            for completed_task in completed_tasks:
+                if completed_task.done():
+                    self.completed.remove(completed_task)
             
             await asyncio.sleep(self._job_prune_interval)
-
-    async def _cancel_task(self, job: Job):
-
-        job.client_closed = True
-
-        await job.clear()
-        await job.close()
 
     async def submit(self, job: Job) -> JobMetadata:
 
         if self.active_jobs_count >= self.max_jobs and self.pending_jobs_count < self.max_pending_jobs:
             job.waiter = asyncio.Future()
+            await self.pending_jobs.put(job)
+            self.pending_jobs_count = self.pending_jobs.qsize()
 
         elif self.active_jobs_count >= self.max_jobs:
             return ServerLimitException(
@@ -173,19 +198,16 @@ class JobQueue:
                 limit=self.max_pending_jobs,
                 current=self.pending_jobs_count
             )
-
-        self._jobs[job.job_id] = job
-
+        
+        else:
+            await self.running_jobs.put(job)
+            self.active_jobs_count = self.running_jobs.qsize()
+        
         self._active[job.job_id] = asyncio.create_task(
             job.run()
         )
 
-        if job.waiter:
-            self.pending_jobs.append(job)
-            self.pending_jobs_count += 1
-
-        else:
-            self.active_jobs_count += 1
+        self._jobs[job.job_id] = job
 
         return job.metadata
 
@@ -255,14 +277,34 @@ class JobQueue:
             self.client.close
         )
 
-        for job in self._active.values():
-            if not job.done():
-                job.cancel()
+        cancel_jobs: List[Job] = []
+        for _ in range(self.pending_jobs_count):
+            job: Job = await self.pending_jobs.get()
+            if job.shutdown is False:
+                cancel_jobs.append(job)
 
-        for job in self._jobs.values():
-            if job.client_closed is False:
-                await job.close()
+            await asyncio.gather(*[
+                asyncio.create_task(
+                    job.close()
+                ) for job in cancel_jobs
+            ])
 
-        self._executor.shutdown(cancel_futures=True)
+        cancel_jobs: List[Job] = []
+        for _ in range(self.active_jobs_count):
+            job: Job = await self.running_jobs.get()
+            if job.shutdown is False:
+                cancel_jobs.append(job)
+            
+            await asyncio.gather(*[
+                asyncio.create_task(
+                    job.close()
+                ) for job in cancel_jobs
+            ])
+        
+        for job_task in self._active.values():
+            if not job_task.done():
+                job_task.cancel()
+
+        self._executor.shutdown()
 
             

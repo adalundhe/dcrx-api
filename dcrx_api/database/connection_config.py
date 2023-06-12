@@ -12,3 +12,4 @@ class ConnectionConfig(BaseModel):
     database_uri: Optional[StrictStr]
     database_port: Optional[StrictInt]
     database_name: Optional[StrictStr]
+    database_transaction_retries: StrictInt=3

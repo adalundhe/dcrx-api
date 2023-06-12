@@ -94,19 +94,19 @@ class AuthorizationSessionManager:
         username: str, 
         password: str
     ) -> Union[DBUser, None]:
-        users: List[DBUser] = await db_connection.select(
+        users = await db_connection.select(
             filters={
                 'username': username
             }
         )
 
-        if len(users) < 1:
+        if users.data is None or len(users.data) < 1:
             return AuthResponse(
                 error='User authorization failed',
                 message='Authentication failed'
             )
         
-        user = users.pop()
+        user = users.data.pop()
         
         password_verified = await self._loop.run_in_executor(
             self._executor,
@@ -228,13 +228,13 @@ class AuthorizationSessionManager:
                     message='Authentication failed'
                 )
         
-        users: List[DBUser] = await connection.select(
+        users = await connection.select(
             filters={
                 'username': token_data.username
             }
         )
 
-        if len(users) < 1:
+        if users.data is None or len(users.data) < 1:
             return AuthResponse(
                 error='User authorization failed',
                 message='Authentication failed'

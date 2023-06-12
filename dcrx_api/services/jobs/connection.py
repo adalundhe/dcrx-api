@@ -2,13 +2,17 @@ from dcrx_api.database import (
     DatabaseConnection,
     ConnectionConfig
 )
+from dcrx_api.database.models import DatabaseTransactionResult
 from dcrx_api.env import Env
 from typing import (
     List,
     Dict,
-    Any
+    Any,
+    Union,
+    Tuple
 )
 from .models import JobMetadata
+from .status import JobStatus
 from .table import JobsTable
 
 
@@ -22,7 +26,8 @@ class JobsConnection(DatabaseConnection[JobMetadata]):
                 database_type=env.DCRX_API_DATABASE_TYPE,
                 database_uri=env.DCRX_API_DATABASE_URI,
                 database_port=env.DCRX_API_DATABASE_PORT,
-                database_name=env.DCRX_API_DATABASE_NAME
+                database_name=env.DCRX_API_DATABASE_NAME,
+                database_transaction_retries=env.DCRX_API_DATABASE_TRANSACTION_RETRIES
             )
         )
 
@@ -31,27 +36,23 @@ class JobsConnection(DatabaseConnection[JobMetadata]):
             database_type=self.config.database_type
         )
 
-    async def init(self):
+    async def init(self) -> DatabaseTransactionResult[JobMetadata]:
         return await self.create_table(self.table.selected.table)
 
     async def select(
         self, 
-        filters: Dict[str, Any]={}
-    ):
+        filters: Dict[str, Union[Any, Tuple[Any, ...]]]={}
+    ) -> DatabaseTransactionResult[JobMetadata]:
         return await self.get(
             self.table.select(
-                filters={
-                    name: self.table.selected.types_map.get(
-                        name
-                    )(value) for name, value in filters.items()
-                }
+                filters=filters
             )
         )
-
+    
     async def create(
         self, 
         jobs: List[JobMetadata]
-    ):
+    ) -> DatabaseTransactionResult[JobMetadata]:
        return await self.insert_or_update(
            self.table.insert(jobs)
        )
@@ -60,7 +61,7 @@ class JobsConnection(DatabaseConnection[JobMetadata]):
         self, 
         jobs: List[JobMetadata],
         filters: Dict[str, Any]={}
-    ):
+    ) -> DatabaseTransactionResult[JobMetadata]:
         return await self.insert_or_update(
             self.table.update(
                 jobs,
@@ -75,7 +76,7 @@ class JobsConnection(DatabaseConnection[JobMetadata]):
     async def remove(
         self,
         filters: Dict[str, Any]
-    ):
+    ) -> DatabaseTransactionResult[JobMetadata]:
         return await self.delete([
             self.table.delete({
                 name: self.table.selected.types_map.get(
@@ -84,6 +85,6 @@ class JobsConnection(DatabaseConnection[JobMetadata]):
             })
         ])
     
-    async def drop(self):
+    async def drop(self) -> DatabaseTransactionResult[JobMetadata]:
         return await self.drop_table(self.table)
     

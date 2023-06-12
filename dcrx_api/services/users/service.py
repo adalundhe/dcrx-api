@@ -1,6 +1,7 @@
 import uuid
 from dcrx_api.services.auth.models import AuthenticationFailureException
 from dcrx_api.context.manager import context, ContextType
+from dcrx_api.database.models import DatabaseTransactionResult
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import JSONResponse
 from typing import Literal
@@ -64,6 +65,9 @@ async def login_user(user: LoginUser) -> UserTransactionSuccessResponse:
         },
         404: {
             "model": UserNotFoundException
+        },
+        500: {
+            "model": DatabaseTransactionResult
         }
     }
 )
@@ -83,14 +87,20 @@ async def get_user(
             'username': user_id_or_name
         }
 
-    users = await users_service_context.connection.select(
+    response = await users_service_context.connection.select(
         filters=filters
     )
 
-    if len(users) < 1:
+    if response.data is None or len(response.data) < 1:
         raise HTTPException(404, detail=f'User {user_id_or_name} not found.')
     
-    user = users.pop()
+    elif response.error:
+        raise HTTPException(500, detail={
+            "message": response.message,
+            "error": response.error
+        })
+    
+    user = response.data.pop()
     
     return AuthorizedUser(
         id=user.id,
@@ -104,6 +114,9 @@ async def get_user(
     responses={
         401: {
             "model": AuthenticationFailureException
+        },
+        500: {
+            "model": DatabaseTransactionResult
         }
     }
 )
@@ -114,13 +127,19 @@ async def create_user(user: NewUser) -> UserTransactionSuccessResponse:
 
     hashed_password = await auth_service_context.manager.encrypt(user.password)
 
-    await users_service_context.connection.create([
+    response = await users_service_context.connection.create([
         DBUser(
             id=uuid.uuid4(),
             hashed_password=hashed_password,
             **user.dict(exclude={"password"})
         )
     ])
+
+    if response.error:
+        raise HTTPException(500, detail={
+            "message": response.message,
+            "error": response.error
+        })
 
     return UserTransactionSuccessResponse(
         message='Created user.'
@@ -133,6 +152,9 @@ async def create_user(user: NewUser) -> UserTransactionSuccessResponse:
     responses={
         401: {
             "model": AuthenticationFailureException
+        },
+        500: {
+            "model": DatabaseTransactionResult
         }
     }
 )
@@ -140,9 +162,15 @@ async def update_user(user: UpdatedUser) -> UserTransactionSuccessResponse:
 
     users_service_context = context.get(ContextType.USERS_SERVICE)
 
-    await users_service_context.connection.update([
+    response = await users_service_context.connection.update([
         user
     ])
+
+    if response.error:
+        raise HTTPException(500, detail={
+            "message": response.message,
+            "error": response.error
+        })
 
     return UserTransactionSuccessResponse(
         message='Updated user.'
@@ -155,6 +183,9 @@ async def update_user(user: UpdatedUser) -> UserTransactionSuccessResponse:
     responses={
         401: {
             "model": AuthenticationFailureException
+        },
+        500: {
+            "model": DatabaseTransactionResult
         }
     }
 )
@@ -162,11 +193,17 @@ async def delete_user(user_id: str) -> UserTransactionSuccessResponse:
 
     users_service_context = context.get(ContextType.USERS_SERVICE)
 
-    await users_service_context.connection.remove(
+    response = await users_service_context.connection.remove(
         filters={
             'id': user_id
         }
     )
+
+    if response.error:
+        raise HTTPException(500, detail={
+            "message": response.message,
+            "error": response.error
+        })
 
     return UserTransactionSuccessResponse(
         message='Deleted user.'

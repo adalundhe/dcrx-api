@@ -24,6 +24,7 @@ from typing import (
     List
 )
 from .connection_config import ConnectionConfig
+from .models import DatabaseTransactionResult
 
 
 T = TypeVar('T')
@@ -104,93 +105,187 @@ class DatabaseConnection(Generic[T]):
     async def create_table(
         self,
         table: Table
-    ):
-        async with self.engine.connect() as connection:
-            try:
-                await connection.execute(
-                    CreateTable(
-                        table,
-                        if_not_exists=True
+    ) -> DatabaseTransactionResult[T]:
+        
+        last_error: Union[str, None]=None
+
+        for _ in range(self.config.database_transaction_retries):
+            async with self.engine.connect() as connection:
+                try:
+                    await connection.execute(
+                        CreateTable(
+                            table,
+                            if_not_exists=True
+                        )
                     )
-                )
 
-            except Exception:
-                await connection.rollback()
+                    await connection.commit()
 
-            await connection.commit()
+                    return DatabaseTransactionResult(
+                        message='Table created'
+                    )
+
+                except Exception as transaction_exception:
+                    last_error = str(transaction_exception)
+                    await connection.rollback()
+
+                await connection.commit()
+        
+        return DatabaseTransactionResult(
+            message='Database transaction failed',
+            error=last_error
+        )
+
 
     async def get(
         self, 
         statement: Select
-    ) -> List[T]:
+    ) -> DatabaseTransactionResult[T]:
         
+        last_error: Union[str, None]=None
         results: List[T] = []
 
-        async with self.engine.connect() as connection:
-            
-            try:
-                results = await connection.execute(statement)
-            
-            except Exception:
-                await connection.rollback()
+        for _ in range(self.config.database_transaction_retries):
+            async with self.engine.connect() as connection:
+                
+                try:
 
-        return [
-            row for row in results
-        ] 
+                    results: List[T] = await connection.execute(statement)
+                    await connection.commit()
+
+                    return DatabaseTransactionResult(
+                        message='Records successfully retrieved',
+                        data=[
+                            row for row in results
+                        ]
+                    )
+                
+                except Exception as transaction_exception:
+                    last_error = str(transaction_exception)
+                    await connection.rollback()
+
+                await connection.commit()
+        
+        return DatabaseTransactionResult(
+            message='Database transaction failed',
+            last_error=last_error
+        )
     
     async def insert_or_update(
         self,
         statements: List[
             Union[Insert, Update]
         ]
-    ):
+    ) -> DatabaseTransactionResult[T]:
         
-        async with self.engine.connect() as connection:
-            try:
-                for statement in statements:
-                    await connection.execute(statement)
+        last_error: Union[str, None]=None
+        for _ in range(self.config.database_transaction_retries):
+            async with self.engine.connect() as connection:
+                try:
+                    for statement in statements:
+                        await connection.execute(statement)
 
-            except Exception:
-                await connection.rollback()
-            
+                    await connection.commit()
 
-            await connection.commit()
+                    return DatabaseTransactionResult(
+                        message='Records successfully created or updated'
+                    )
+
+                except Exception as transaction_exception:
+                    last_error = str(transaction_exception)
+                    await connection.rollback()
+                
+                await connection.commit()
+        
+        return DatabaseTransactionResult(
+            message='Database transaction failed',
+            last_error=last_error
+        )
 
 
     async def delete(
         self,
         statements: List[Delete]
-    ):
-        async with self.engine.connect() as connection:
-
-            try:
-                for statement in statements:
-                    await connection.execute(statement)
-
-            except Exception:
-                await connection.rollback()
+    ) -> DatabaseTransactionResult[T]:
         
-            await connection.commit()
+        last_error: Union[str, None]=None
+        for _ in range(self.config.database_transaction_retries):
+            async with self.engine.connect() as connection:
+
+                try:
+                    for statement in statements:
+                        await connection.execute(statement)
+
+                    await connection.commit()
+
+                    return DatabaseTransactionResult(
+                        message='Records successfully dropped'
+                    )
+
+                except Exception as transaction_exception:
+                    last_error = str(transaction_exception)
+                    await connection.rollback()
+            
+                await connection.commit()
+        
+        return DatabaseTransactionResult(
+            message='Database transaction failed',
+            last_error=last_error
+        )
 
     async def drop_table(
         self,
         table: Table
-    ):
-        async with self.engine.connect() as connection:
-            
-            try:
-                await connection.execute(
-                    DropTable(
-                        table,
-                        if_exists=True
+    ) -> DatabaseTransactionResult[T]:
+        
+        last_error: Union[str, None]=None
+        for _ in range(self.config.database_transaction_retries):
+
+            async with self.engine.connect() as connection:
+                
+                try:
+                    await connection.execute(
+                        DropTable(
+                            table,
+                            if_exists=True
+                        )
                     )
-                )
 
-            except Exception:
-                await connection.rollback()
+                    await connection.commit()
 
-            await connection.commit()
+                    return DatabaseTransactionResult(
+                        message='Table successfully dropped'
+                    )
+
+                except Exception as transaction_exception:
+                    last_error = str(transaction_exception)
+                    await connection.rollback()
+
+                await connection.commit()
+        
+        return DatabaseTransactionResult(
+            message='Database transaction failed',
+            last_error=last_error
+        )
     
     async def close(self):
-        if self.connection:
-            await self.connection.close()
+
+        last_error: Union[str, None]=None
+        for _ in range(self.config.database_transaction_retries):
+
+            try:
+
+                if self.connection:
+                    await self.connection.close()
+
+                return DatabaseTransactionResult(
+                    message='Connection successfully closed'
+                )
+
+            except Exception as transaction_exception:
+                last_error = str(transaction_exception)
+
+        return DatabaseTransactionResult(
+            message='Database transaction failed',
+            last_error=last_error
+        )

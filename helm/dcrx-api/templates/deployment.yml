@@ -46,6 +46,11 @@ spec:
             configMapKeyRef:
               name: "{{ .Release.Name }}-env"
               key: DCRX_API_JOB_PRUNE_INTERVAL
+        - name: DCRX_API_JOB_MAX_PENDING_WAIT
+          valueFrom:
+            configMapKeyRef:
+              name: "{{ .Release.Name }}-env"
+              key: DCRX_API_JOB_MAX_PENDING_WAIT
         - name: DCRX_API_JOB_MAX_PENDING
           valueFrom:
             configMapKeyRef:
@@ -71,7 +76,12 @@ spec:
             configMapKeyRef:
               name: "{{ .Release.Name }}-env"
               key: DCRX_API_TOKEN_EXPIRATION
-        - name: DCRX_API_DATABASE_TYPE
+        - name: DCRX_API_DATABASE_TRANSACTION_RETRIES
+          valueFrom:
+            configMapKeyRef:
+              name: "{{ .Release.Name }}-env"
+              key: DCRX_API_DATABASE_TYPE
+        - name: DCRX_API_DATABASE_TRANSACTION_RETRIES
           valueFrom:
             configMapKeyRef:
               name: "{{ .Release.Name }}-env"

@@ -31,13 +31,17 @@ docker pull adalundhe/dcrx-api:latest
 DCRX-API requires a slew of environmental variables in order to run correctly. These include:
 
 ```
-DCRX_API_JOB_TIMEOUT=10m # The maximum amount of time before an image build + push job times out and is cancelled.
+DCRX_API_JOB_TIMEOUT=10m # The maximum amount of time before an image build + push job times out and is cancelled. Default is 10 minutes.
 
-DCRX_API_MAX_MEMORY_PERCENT_USAGE=50 # The percent of system memory DCRX-API and Docker image builds created by DCRX-API can use. If exceeded, new jobs will be rejected and requests will return a 400 error.
+DCRX_API_MAX_MEMORY_PERCENT_USAGE=50 # The percent of system memory DCRX-API and Docker image builds created by DCRX-API can use. If exceeded, new jobs will be rejected and requests will return a 400 error. Default is 50 percent.
 
 DCRX_API_JOB_PRUNE_INTERVAL='1s' # How often dcrx-api checks for done, failed, or cancelled jobs to remove from in-memory storage.
 
 DCRX_API_JOB_MAX_AGE='1m'= # Time before done, failed, or cancelled jobs are pruned from in-memory storage.
+
+DCRX_API_JOB_MAX_PENDING_WAIT=10m # The maximum amount of time a job can remain in PENDING status. Jobs that exceed this threshold are timed out and will fail.
+
+DCRX_API_JOB_MAX_PENDING=100 # The maximum number of pending jobs that a single instance of DCRX-API allows. Default is 100.
 
 DCRX_API_JOB_POOL_SIZE=10 # Maximum number of concurrent builds. Default is 10.
 
@@ -48,6 +52,8 @@ DCRX_API_TOKEN_EXPIRATION='15m' # Time for JWT authorization token to expire. De
 DCRX_API_SECRET_KEY=testingthis # Initial secret used to hash user passwords.
 
 DCRX_API_AUTH_ALGORITHM=HS256 # Algorithm to use for hashing user passwords.
+
+DCRX_API_DATABASE_TRANSACTION_RETRIES=3 # Number of times to retry a failed transaction. Default is 3.
 
 DCRX_API_DATABASE_TYPE=sqlite # Type of database to use. Default is sqlite and options are mysql, asyncpg, and sqlite.
 

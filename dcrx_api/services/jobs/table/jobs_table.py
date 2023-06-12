@@ -14,7 +14,8 @@ from typing import (
     Callable,
     Optional,
     TypeVar,
-    Generic
+    Generic,
+    Tuple
 )
 from .jobs_mysql_table import JobsMySQLTable
 from .jobs_postgres_table import JobsPostgresTable
@@ -56,18 +57,31 @@ class JobsTable(Generic[M]):
 
     def select(
         self, 
-        filters: Optional[Dict[str, Any]]={}
+        filters: Optional[Dict[str, Union[Any, Tuple[Any, ...]]]]={}
     ) -> Select:
 
         select_clause: Select = self.selected.table.select()
 
         if filters:
-            for field_name, value in filters.items():
-                select_clause = select_clause.where(
-                    self.selected.columns.get(field_name) == self.selected.types_map.get(
-                        field_name
-                    )(value)
-                )
+            for field_name, values in filters.items():
+
+                if isinstance(values, tuple):
+                    select_clause = select_clause.where(
+                        self.selected.columns.get(field_name).in_(
+                            tuple([
+                                self.selected.types_map.get(
+                                    field_name
+                                )(value) for value in values
+                            ])
+                        ))
+
+                else:
+
+                    select_clause = select_clause.where(
+                        self.selected.columns.get(field_name) == self.selected.types_map.get(
+                            field_name
+                        )(values)
+                    )
 
         return select_clause
     

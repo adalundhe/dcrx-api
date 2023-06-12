@@ -99,11 +99,11 @@ async def create_user(
 
     users = await connection.select()
 
-    if len(users) < 1:
+    if users.data is None or len(users.data) < 1:
         await connection.create([
             user
         ])
-    
+
     await auth.close()
     await connection.close()
 

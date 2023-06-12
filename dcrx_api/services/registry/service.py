@@ -1,6 +1,7 @@
 import uuid
 from dcrx_api.services.auth.models import AuthenticationFailureException
 from dcrx_api.context.manager import context, ContextType
+from dcrx_api.database.models import DatabaseTransactionResult
 from fastapi import APIRouter, HTTPException
 from typing import Literal
 from .context import RegistryServiceContext
@@ -22,6 +23,9 @@ registry_router = APIRouter()
         },
         404: {
             "model": RegistryNotFoundException
+        },
+        500: {
+            "model": DatabaseTransactionResult
         }
     }
 )
@@ -41,14 +45,20 @@ async def get_registry(
             'registry_uri': registry_id_or_name
         }
 
-    registries = await registry_service_context.connection.select(
+    response = await registry_service_context.connection.select(
         filters=filters
     )
 
-    if len(registries) < 1:
+    if len(response.data) < 1:
         raise HTTPException(404, detail=f'Registry {registry_id_or_name} not found.')
     
-    registry = registries.pop()
+    elif response.error:
+        raise HTTPException(500, detail={
+            "message": response.message,
+            "error": response.error
+        })
+    
+    registry = response.data.pop()
     
     return RegistryTransactionSuccessResponse(
         id=registry.id,
@@ -62,6 +72,9 @@ async def get_registry(
     responses={
         401: {
             "model": AuthenticationFailureException
+        },
+        500: {
+            "model": DatabaseTransactionResult
         }
     }
 )
@@ -75,7 +88,7 @@ async def create_registry(registry: RegistryMetadata) -> RegistryTransactionSucc
     )
 
     new_registry_id = uuid.uuid4()
-    await registry_service_context.connection.create([
+    response = await registry_service_context.connection.create([
         Registry(
             id=new_registry_id,
             registry_name=registry.registry_name,
@@ -84,6 +97,12 @@ async def create_registry(registry: RegistryMetadata) -> RegistryTransactionSucc
             registry_password=hashed_password
         )
     ])
+
+    if response.error:
+        raise HTTPException(500, detail={
+            "message": response.message,
+            "error": response.error
+        })
 
     return RegistryTransactionSuccessResponse(
         id=new_registry_id,
@@ -98,6 +117,9 @@ async def create_registry(registry: RegistryMetadata) -> RegistryTransactionSucc
     responses={
         401: {
             "model": AuthenticationFailureException
+        },
+        500: {
+            "model": DatabaseTransactionResult
         }
     }
 )
@@ -105,9 +127,15 @@ async def update_registry(registry: Registry) -> RegistryTransactionSuccessRespo
 
     registry_service_context: RegistryServiceContext = context.get(ContextType.REGISTRY_SERVICE)
 
-    await registry_service_context.connection.update([
+    response = await registry_service_context.connection.update([
         registry
     ])
+
+    if response.error:
+        raise HTTPException(500, detail={
+            "message": response.message,
+            "error": response.error
+        })
 
     return RegistryTransactionSuccessResponse(
         id=registry.id,
@@ -122,6 +150,9 @@ async def update_registry(registry: Registry) -> RegistryTransactionSuccessRespo
     responses={
         401: {
             "model": AuthenticationFailureException
+        },
+        500: {
+            "model": DatabaseTransactionResult
         }
     }
 )
@@ -129,11 +160,17 @@ async def delete_registry(registry_id: str) -> RegistryTransactionSuccessRespons
 
     registry_service_context: RegistryServiceContext = context.get(ContextType.REGISTRY_SERVICE)
 
-    await registry_service_context.connection.remove(
+    response = await registry_service_context.connection.remove(
         filters={
             'id': registry_id
         }
     )
+
+    if response.error:
+        raise HTTPException(500, detail={
+            "message": response.message,
+            "error": response.error
+        })
 
     return RegistryTransactionSuccessResponse(
         id=registry_id,

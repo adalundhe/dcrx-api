@@ -37,10 +37,15 @@ async def lifespan(app: FastAPI):
         manager=AuthorizationSessionManager(env)
     )
 
+    jobs_service_connection = JobsConnection(env)
+
     job_service_context = JobServiceContext(
         env=env,
-        queue=JobQueue(env),
-        connection=JobsConnection(env)
+        queue=JobQueue(
+            env,
+            jobs_service_connection
+        ),
+        connection=jobs_service_connection
     )
 
     monitoring_service_context = MonitoringServiceContext(

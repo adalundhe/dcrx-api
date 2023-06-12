@@ -1,6 +1,7 @@
 import uuid
 from dcrx import Image
 from dcrx_api.context.manager import context, ContextType
+from dcrx_api.database.models import DatabaseTransactionResult
 from dcrx_api.services.registry.context import RegistryServiceContext
 from dcrx_api.services.registry.models import Registry, RegistryNotFoundException
 from fastapi import APIRouter, HTTPException
@@ -63,6 +64,9 @@ jobs_router = APIRouter()
         429: {
             'model': ServerLimitException
         },
+        500: {
+            "model": DatabaseTransactionResult
+        }
     }
 )
 async def create_job(new_image: NewImage) -> JobMetadata:
@@ -79,19 +83,24 @@ async def create_job(new_image: NewImage) -> JobMetadata:
             "current": monitoring_service_context.get_memory_usage_pct()
         })
     
-    registries = await registry_service_context.connection.select(
+    response = await registry_service_context.connection.select(
         filters={
             'registry_name': new_image.registry.registry_name
         }
     )
 
-    if len(registries) < 1:
-
+    if response.data is None or len(response.data) < 1:
         raise HTTPException(404, detail={
             "message": "Registry not found."
         })
+    
+    elif response.error:
+        raise HTTPException(500, detail={
+            "message": response.message,
+            "error": response.error
+        })
         
-    registry = registries.pop()
+    registry = response.data.pop()
 
     dcrx_image = Image(
         new_image.name,
@@ -142,6 +151,7 @@ async def create_job(new_image: NewImage) -> JobMetadata:
         build_options=new_image.build_options,
         pool_size=job_service_context.queue.pool_size,
         timeout=job_service_context.env.DCRX_API_JOB_TIMEOUT,
+        wait_timeout=job_service_context.env.DCRX_API_JOB_MAX_PENDING_WAIT
     )
 
     response = await job_service_context.queue.submit(job)
@@ -162,6 +172,9 @@ async def create_job(new_image: NewImage) -> JobMetadata:
     responses={
         404: {
             "model": JobNotFoundException
+        },
+        500: {
+            "model": DatabaseTransactionResult
         }
     }
 )
@@ -175,16 +188,22 @@ async def get_job(job_id: str) -> JobMetadata:
 
     if isinstance(retrieved_job, JobNotFoundException):
 
-        retrieved_jobs = await job_service_context.connection.select(
+        response = await job_service_context.connection.select(
             filters={
                 'id': job_id
             }
         )
 
-        if len(retrieved_jobs) < 1:
+        if response.data is None or len(response.data) < 1:
             raise HTTPException(404, detail=retrieved_job.message)
         
-        job = retrieved_jobs.pop()
+        elif response.error:
+            raise HTTPException(500, detail={
+                "message": response.message,
+                "error": response.error
+            })
+        
+        job = response.data.pop()
 
         retrieved_job = JobMetadata(
             id=job.id,
@@ -205,6 +224,9 @@ async def get_job(job_id: str) -> JobMetadata:
     responses={
         404: {
             "model": JobNotFoundException
+        },
+        500: {
+            "model": DatabaseTransactionResult
         }
     }
 )
