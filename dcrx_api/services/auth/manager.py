@@ -2,8 +2,8 @@ import asyncio
 import base64
 import datetime
 import functools
-from cryptography.fernet import Fernet
 from concurrent.futures import ThreadPoolExecutor
+from cryptography.fernet import Fernet
 from dcrx_api.env import Env
 from jose import JWTError, jwt
 from fastapi.security import OAuth2PasswordBearer
@@ -13,7 +13,6 @@ from typing import (
     Optional,
     Dict,
     Any,
-    List,
     Union
 )
 from dcrx_api.env.time_parser import TimeParser
